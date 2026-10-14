@@ -5,6 +5,7 @@ import App from '../App';
 describe('Project Campus App Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    sessionStorage.clear();
   });
 
   afterEach(() => {
@@ -24,7 +25,7 @@ describe('Project Campus App Component', () => {
 
     const brandElements = screen.getAllByText('Project Campus');
     expect(brandElements.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Milestone 1 Core')).toBeInTheDocument();
+    expect(screen.getByText('Milestone 2 Active')).toBeInTheDocument();
     expect(screen.getByText('Foundational Curriculum Schema')).toBeInTheDocument();
   });
 
@@ -40,7 +41,7 @@ describe('Project Campus App Component', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Backend v0\.1\.0 • DB Connected/i)).toBeInTheDocument();
+      expect(screen.getByText(/v0\.1\.0 • DB Connected/i)).toBeInTheDocument();
     });
   });
 

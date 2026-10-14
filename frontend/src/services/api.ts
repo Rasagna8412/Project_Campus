@@ -1,48 +1,96 @@
 import { HealthResponse } from '../types/api';
+import {
+  CurriculumBoard,
+  OnboardingPayload,
+  StudentProfile,
+  TokenResponse,
+  User,
+} from '../types/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const TOKEN_STORAGE_KEY = 'campus_auth_token';
 
-/**
- * Fetch with timeout utility to detect network latency or service unreachability.
- */
-async function fetchWithTimeout(resource: string, options: RequestInit = {}, timeoutMs = 5000): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-
+export function getAuthToken(): string | null {
   try {
-    const response = await fetch(resource, {
-      ...options,
-      signal: controller.signal,
-    });
-    return response;
-  } finally {
-    clearTimeout(id);
+    return sessionStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setAuthToken(token: string): void {
+  try {
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+  } catch {
+    // SessionStorage unavailable
+  }
+}
+
+export function removeAuthToken(): void {
+  try {
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    // SessionStorage unavailable
   }
 }
 
 /**
- * Call the live backend health endpoint.
- * Genuinely inspects application and database connectivity.
+ * Fetch wrapper with timeout and automatic Authorization header attachment.
  */
-export async function checkBackendHealth(verifyDatabase = true): Promise<HealthResponse> {
-  const endpoint = verifyDatabase
-    ? `${API_BASE_URL}/api/v1/health?check_db=true`
-    : `${API_BASE_URL}/health`;
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  timeoutMs = 6000
+): Promise<T> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  };
+
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  if (options.body && typeof options.body === 'string' && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   try {
-    const response = await fetchWithTimeout(endpoint, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    }, 4000);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
 
-    if (!response.ok && response.status !== 503) {
-      throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+    if (response.status === 401) {
+      // Clear token on 401 unauthorized
+      removeAuthToken();
     }
 
-    const data: HealthResponse = await response.json();
-    return data;
+    if (!response.ok) {
+      let errorMessage = `HTTP error ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.detail) {
+          if (Array.isArray(errorData.detail)) {
+            errorMessage = errorData.detail.map((d: { msg?: string }) => d.msg || '').join(', ');
+          } else {
+            errorMessage = errorData.detail;
+          }
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch {
+        // Body was not json
+      }
+      throw new Error(errorMessage);
+    }
+
+    return await response.json() as T;
   } catch (err: unknown) {
     if (err instanceof Error) {
       if (err.name === 'AbortError') {
@@ -50,6 +98,110 @@ export async function checkBackendHealth(verifyDatabase = true): Promise<HealthR
       }
       throw err;
     }
-    throw new Error('Unknown connection error occurred while contacting backend');
+    throw new Error('Unknown network communication error');
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+/**
+ * Backend Health Verification
+ */
+export async function checkBackendHealth(verifyDatabase = true): Promise<HealthResponse> {
+  const endpoint = verifyDatabase
+    ? '/api/v1/health?check_db=true'
+    : '/health';
+  return await apiRequest<HealthResponse>(endpoint, { method: 'GET' });
+}
+
+/**
+ * Authentication Endpoints
+ */
+export async function registerStudent(payload: {
+  email: string;
+  password: string;
+  full_name: string;
+}): Promise<TokenResponse> {
+  const data = await apiRequest<TokenResponse>('/api/v1/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  if (data.access_token) {
+    setAuthToken(data.access_token);
+  }
+  return data;
+}
+
+export async function loginUser(payload: {
+  email: string;
+  password: string;
+}): Promise<TokenResponse> {
+  const data = await apiRequest<TokenResponse>('/api/v1/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  if (data.access_token) {
+    setAuthToken(data.access_token);
+  }
+  return data;
+}
+
+export async function logoutUser(): Promise<{ status: string; message: string }> {
+  try {
+    const res = await apiRequest<{ status: string; message: string }>('/api/v1/auth/logout', {
+      method: 'POST',
+    });
+    return res;
+  } finally {
+    removeAuthToken();
+  }
+}
+
+export async function getCurrentUser(): Promise<User> {
+  return await apiRequest<User>('/api/v1/auth/me', { method: 'GET' });
+}
+
+/**
+ * Curriculum Taxonomy
+ */
+export async function getCurricula(): Promise<CurriculumBoard[]> {
+  return await apiRequest<CurriculumBoard[]>('/api/v1/curricula/', { method: 'GET' });
+}
+
+/**
+ * Student Profile & Onboarding
+ */
+export async function getStudentProfile(): Promise<StudentProfile> {
+  return await apiRequest<StudentProfile>('/api/v1/student/profile', { method: 'GET' });
+}
+
+export async function submitStudentOnboarding(
+  payload: OnboardingPayload
+): Promise<StudentProfile> {
+  return await apiRequest<StudentProfile>('/api/v1/student/onboarding', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateStudentProfile(payload: {
+  daily_study_goal_minutes?: number;
+  target_exam_year?: number;
+  preferred_language?: string;
+}): Promise<StudentProfile> {
+  return await apiRequest<StudentProfile>('/api/v1/student/profile', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteStudentAccount(): Promise<{ status: string; message: string }> {
+  try {
+    return await apiRequest<{ status: string; message: string }>(
+      '/api/v1/student/account',
+      { method: 'DELETE' }
+    );
+  } finally {
+    removeAuthToken();
   }
 }

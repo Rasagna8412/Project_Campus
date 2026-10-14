@@ -9,7 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.api import api_router
-from app.api.v1.endpoints.health import get_health
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.schemas.health import HealthResponse
@@ -25,6 +24,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(
         f"Starting {settings.APP_NAME} v{settings.APP_VERSION} [{settings.ENVIRONMENT}]"
     )
+    # Seed initial roles and foundational curricula idempotently
+    try:
+        from app.core.database import AsyncSessionLocal
+        from app.core.seed import seed_initial_data
+
+        async with AsyncSessionLocal() as session:
+            await seed_initial_data(session)
+    except Exception as exc:
+        logger.warning(f"Initial seed execution deferred: {exc}")
+
     yield
     logger.info(f"Shutting down {settings.APP_NAME}")
 

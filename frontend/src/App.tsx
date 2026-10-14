@@ -1,19 +1,38 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
 import { MathSnippet } from './components/common/MathSnippet';
 import { CurriculumFoundation } from './components/common/CurriculumFoundation';
 import { MilestoneRoadmap } from './components/common/MilestoneRoadmap';
+import { AuthModal } from './components/auth/AuthModal';
+import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
+import { StudentDashboard } from './components/dashboard/StudentDashboard';
 import { checkBackendHealth } from './services/api';
 import { HealthResponse, ConnectionState } from './types/api';
-import { Server, Cpu, Database, AlertCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
+import {
+  Server,
+  Cpu,
+  Database,
+  AlertCircle,
+  RefreshCw,
+  ArrowRight,
+  ShieldCheck,
+  UserPlus,
+} from 'lucide-react';
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const { user, isAuthenticated } = useAuth();
+
   const [healthData, setHealthData] = useState<HealthResponse | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('checking');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null);
+
+  // Modal and Onboarding View States
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'register'>('signin');
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
 
   const fetchHealth = useCallback(async () => {
     setIsRefreshing(true);
@@ -39,13 +58,17 @@ export const App: React.FC = () => {
       }
     } finally {
       setIsRefreshing(false);
-      setLastCheckedAt(new Date());
     }
   }, []);
 
   useEffect(() => {
     fetchHealth();
   }, [fetchHealth]);
+
+  const handleOpenAuth = (mode: 'signin' | 'register') => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
@@ -55,58 +78,12 @@ export const App: React.FC = () => {
         errorMessage={errorMessage}
         onRefresh={fetchHealth}
         isRefreshing={isRefreshing}
+        onOpenAuth={handleOpenAuth}
+        onOpenOnboarding={() => setIsOnboardingOpen(true)}
       />
 
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
-        {/* Welcome & System Status Hero Banner */}
-        <div className="bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg border border-slate-800">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-brand-500/20 text-brand-300 border border-brand-500/30 mb-4">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Milestone 1 Architecture Active</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Project Campus
-            </h1>
-            <p className="mt-2 text-sm sm:text-base text-slate-300 leading-relaxed">
-              A high-precision educational platform built for secondary and competitive exam preparation (CBSE, JEE Main, NEET). 
-              Currently deployed with core application scaffolding, live async database connectivity, and verified mathematical typesetting.
-            </p>
-          </div>
-
-          {/* Real-time Diagnostics Grid */}
-          <div className="mt-6 pt-6 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-            <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/5 border border-white/10">
-              <Server className="w-5 h-5 text-brand-400" />
-              <div>
-                <p className="text-slate-400 font-medium">FastAPI Backend</p>
-                <p className="font-bold text-white mt-0.5">
-                  {connectionState === 'connected' ? `v${healthData?.version} • Online` : 'Offline / Unreachable'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/5 border border-white/10">
-              <Database className="w-5 h-5 text-brand-400" />
-              <div>
-                <p className="text-slate-400 font-medium">Database Storage</p>
-                <p className="font-bold text-white mt-0.5">
-                  {connectionState === 'connected' ? 'SQLite (Async) / Migrated' : 'Disconnected'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/5 border border-white/10">
-              <Cpu className="w-5 h-5 text-brand-400" />
-              <div>
-                <p className="text-slate-400 font-medium">Math Typography</p>
-                <p className="font-bold text-white mt-0.5">KaTeX 0.16 Client Engine</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Backend Unavailable Warning Box (conditional) */}
+        {/* Backend Unavailable Warning Box */}
         {connectionState === 'disconnected' && (
           <div
             className="rounded-xl border border-rose-200 bg-rose-50 p-5 shadow-sm text-xs text-rose-900"
@@ -121,7 +98,7 @@ export const App: React.FC = () => {
                 </p>
                 <div className="mt-3 bg-white/80 p-3 rounded-lg border border-rose-200 font-mono text-[11px] text-slate-800">
                   <p className="text-slate-600 font-sans mb-1 font-semibold">Start the backend development server using:</p>
-                  <code>uvicorn app.main:app --reload --port 8000</code>
+                  <code>python scripts/run_backend.py</code>
                 </div>
                 <button
                   onClick={fetchHealth}
@@ -136,32 +113,96 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Live Backend Connection Details (when connected) */}
-        {connectionState === 'connected' && healthData && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 shadow-sm flex items-center justify-between text-xs text-emerald-900">
-            <div className="flex items-center space-x-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-              <div>
-                <span className="font-bold text-emerald-950">Backend API Connectivity Verified:</span>
-                <span className="ml-1 text-emerald-800">
-                  `GET /health` returned HTTP 200 with status &quot;{healthData.status}&quot; and database connectivity confirmed.
-                </span>
+        {/* VIEW A: Authenticated Student Area */}
+        {isAuthenticated && user ? (
+          <div>
+            {isOnboardingOpen ? (
+              <OnboardingWizard
+                onCompleted={() => setIsOnboardingOpen(false)}
+                onCancel={() => setIsOnboardingOpen(false)}
+              />
+            ) : (
+              <StudentDashboard onOpenOnboarding={() => setIsOnboardingOpen(true)} />
+            )}
+          </div>
+        ) : (
+          /* VIEW B: Public Guest / Signed-Out Experience */
+          <div className="space-y-8">
+            {/* Hero Banner */}
+            <div className="bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 rounded-2xl p-6 sm:p-10 text-white shadow-xl border border-slate-800">
+              <div className="max-w-3xl">
+                <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-brand-500/20 text-brand-300 border border-brand-500/30 mb-4">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Secure Authentication & Academic Onboarding Active</span>
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight">
+                  Master High School & Entrance Exam Curricula
+                </h1>
+                <p className="mt-3 text-sm sm:text-base text-slate-300 leading-relaxed">
+                  Engineered for serious learners preparing for CBSE Boards, JEE Main, and NEET. 
+                  Experience rigorous syllabus alignment, verified solutions, transparent AI guidance, and individualized revision scheduling.
+                </p>
+
+                {/* Primary Guest Call to Actions */}
+                <div className="mt-8 flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                  <button
+                    onClick={() => handleOpenAuth('register')}
+                    className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3 rounded-xl font-bold text-sm bg-brand-600 hover:bg-brand-500 text-white shadow-lg transition-all"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Create Student Account</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenAuth('signin')}
+                    className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3 rounded-xl font-bold text-sm bg-white/10 hover:bg-white/15 text-white border border-white/20 transition-all"
+                  >
+                    <span>Sign In to Existing Account</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Real-time Diagnostics Grid */}
+              <div className="mt-8 pt-6 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                  <Server className="w-5 h-5 text-brand-400" />
+                  <div>
+                    <p className="text-slate-400 font-medium">FastAPI Backend</p>
+                    <p className="font-bold text-white mt-0.5">
+                      {connectionState === 'connected' ? `v${healthData?.version} • Online` : 'Offline'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                  <Database className="w-5 h-5 text-brand-400" />
+                  <div>
+                    <p className="text-slate-400 font-medium">Database Persistence</p>
+                    <p className="font-bold text-white mt-0.5">
+                      {connectionState === 'connected' ? 'SQLite (Async) • Migrated' : 'Disconnected'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                  <Cpu className="w-5 h-5 text-brand-400" />
+                  <div>
+                    <p className="text-slate-400 font-medium">Math Typography</p>
+                    <p className="font-bold text-white mt-0.5">KaTeX 0.16 Client Engine</p>
+                  </div>
+                </div>
               </div>
             </div>
-            {lastCheckedAt && (
-              <span className="text-[11px] text-emerald-700 hidden sm:inline">
-                Last checked: {lastCheckedAt.toLocaleTimeString()}
-              </span>
-            )}
           </div>
         )}
 
-        {/* Mathematical Typesetting Showcase */}
+        {/* Mathematical Typesetting Engine */}
         <div>
           <div className="mb-3">
             <h2 className="text-base font-bold text-slate-900">Verified Mathematical Typesetting Engine</h2>
             <p className="text-xs text-slate-600">
-              Rendered client-side via KaTeX with zero latency to guarantee readable physics and chemistry formulas:
+              Zero-latency client-side rendering via KaTeX ensuring crystal-clear formulas across all viewports:
             </p>
           </div>
 
@@ -184,15 +225,31 @@ export const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Curriculum Taxonomy Foundation */}
+        {/* Foundational Curriculum Taxonomy */}
         <CurriculumFoundation />
 
-        {/* Milestone Implementation Roadmap */}
+        {/* Implementation Roadmap */}
         <MilestoneRoadmap />
       </main>
 
       <Footer />
+
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode={authModalMode}
+      />
     </div>
   );
 };
+
+export const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+};
+
 export default App;

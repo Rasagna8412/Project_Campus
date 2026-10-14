@@ -40,34 +40,51 @@ project_campus/
 ├── docs/                                # Architecture & governance documentation suite
 ├── backend/                             # Python FastAPI application
 │   ├── app/
-│   │   ├── api/v1/endpoints/health.py   # Health endpoint with genuine DB verification
-│   │   ├── core/                        # Config, async database engine, logging
+│   │   ├── api/
+│   │   │   ├── deps.py                  # JWT authentication, role guards & student dependency injection
+│   │   │   └── v1/
+│   │   │       ├── endpoints/
+│   │   │       │   ├── auth.py          # Student registration, login, logout, me endpoints
+│   │   │       │   ├── curricula.py     # Curriculum, grade, and subject taxonomy queries
+│   │   │       │   ├── health.py        # Health endpoint with genuine DB verification
+│   │   │       │   └── student.py       # Profile management, onboarding lifecycle & DPDP account erasure
+│   │   │       └── api.py               # API v1 router mounting all modular endpoints
+│   │   ├── core/                        # Config, async database engine, security (bcrypt/JWT/rate limiter), seed
 │   │   ├── models/                      # SQLAlchemy 2.0 declarative models (identity, taxonomy)
-│   │   ├── schemas/                     # Pydantic v2 response schemas
-│   │   └── main.py                      # FastAPI app entry point & CORS
-│   ├── alembic/                         # Alembic async migration scripts
+│   │   ├── schemas/                     # Pydantic v2 schemas (auth, student, curriculum)
+│   │   └── main.py                      # FastAPI app entry point, rate limiting & error handling
+│   ├── alembic/                         # Alembic async migration scripts (up to eeac6986a79e)
 │   ├── alembic.ini                      # Alembic configuration
-│   └── requirements.txt                 # Backend Python dependencies
+│   └── requirements.txt                 # Backend Python dependencies (fastapi, sqlalchemy, bcrypt, pyjwt, etc.)
 ├── frontend/                            # React + TypeScript + Vite application
 │   ├── src/
-│   │   ├── components/common/           # Header, Footer, MathSnippet, CurriculumFoundation
-│   │   ├── services/api.ts              # Live backend health check service
-│   │   ├── types/api.ts                 # TypeScript API contracts
-│   │   ├── test/                        # Vitest & Testing Library suites
-│   │   ├── App.tsx                      # Main application shell with live health indicator
+│   │   ├── components/
+│   │   │   ├── auth/                    # AuthModal (Sign In / Register with tab switching & validations)
+│   │   │   ├── common/                  # Header (live auth & connectivity), Footer, MathSnippet
+│   │   │   ├── dashboard/               # StudentDashboard (workspace, subject badges, goal slider, account deletion)
+│   │   │   └── onboarding/              # OnboardingWizard (4-step curriculum, grade, subject & goal setup)
+│   │   ├── context/                     # AuthContext (session persistence, login, register, logout, profile)
+│   │   ├── services/api.ts              # Modular HTTP client with JWT Authorization & credentials handling
+│   │   ├── types/                       # TypeScript contracts (api, auth)
+│   │   ├── test/                        # Vitest suites (App.test.tsx, Auth.test.tsx, Onboarding.test.tsx)
+│   │   ├── App.tsx                      # App shell orchestrating guest hero, auth modal, onboarding & dashboard
 │   │   └── main.tsx                     # React DOM entry point
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── vite.config.ts
-├── tests/                               # Backend automated test suite (Pytest)
+├── tests/                               # Backend automated test suite (Pytest - 24 test cases)
 │   ├── conftest.py                      # Isolated test database and async HTTP client fixtures
+│   ├── test_auth.py                     # Registration, login, logout, password validation & me tests
+│   ├── test_authorization.py            # IDOR isolation, role guards & DPDP account erasure tests
+│   ├── test_onboarding.py               # Taxonomy retrieval, 4-step onboarding lifecycle & validation tests
 │   ├── test_health.py                   # GET /health & /api/v1/health tests
 │   ├── test_database.py                 # DB connectivity & table presence tests
 │   ├── test_models.py                   # Model hierarchy & constraint validation tests
 │   └── test_error_handling.py           # Stack trace leak & secret protection tests
 └── scripts/                             # Utility & verification scripts
     ├── run_backend.py                   # Start local backend uvicorn server
-    └── verify_milestone_1.py            # Comprehensive cross-stack verification runner
+    ├── verify_milestone_1.py            # Milestone 1 verification runner
+    └── verify_milestone_2.py            # Comprehensive Milestone 2 verification runner
 ```
 
 ---
@@ -84,12 +101,25 @@ cd backend
 alembic upgrade head
 cd ..
 
+# Optional: Seed initial curriculum & role taxonomy
+python -c "import asyncio; from app.core.seed import seed_initial_data; asyncio.run(seed_initial_data())"
+
 # Start backend server (binds to http://127.0.0.1:8000)
 python scripts/run_backend.py
 ```
 
 * Backend Health Check: `http://127.0.0.1:8000/health`
 * Interactive API Documentation (Swagger): `http://127.0.0.1:8000/docs`
+* API v1 Endpoints:
+  * `POST /api/v1/auth/register` — Student registration with bcrypt hashing
+  * `POST /api/v1/auth/login` — Login with rate-limiting, JWT response & HttpOnly cookie
+  * `POST /api/v1/auth/logout` — Session termination
+  * `GET /api/v1/auth/me` — Authenticated student identity
+  * `GET /api/v1/curricula` — Board, grade & subject taxonomy for onboarding
+  * `GET /api/v1/student/profile` — Fetch current student's academic profile
+  * `POST /api/v1/student/onboarding` — Multi-step academic onboarding submission
+  * `PUT /api/v1/student/profile` — Update study goals & language preference
+  * `DELETE /api/v1/student/account` — DPDP Act 2023 compliant account & profile erasure
 
 ### 2. Frontend Setup
 ```bash
@@ -106,23 +136,23 @@ npm run build
 
 ## Running Automated Tests
 
-### Backend Tests (Pytest)
+### Backend Tests (Pytest - 24 Tests)
 ```bash
 # Run all backend unit & integration tests
 $env:PYTHONPATH="backend"
 .\.venv\Scripts\pytest.exe -v tests
 ```
 
-### Frontend Tests (Vitest)
+### Frontend Tests (Vitest - 10 Tests across 3 Suites)
 ```bash
 cd frontend
-npm test
+npm test -- --run
 ```
 
-### Comprehensive Milestone 1 Verification
+### Comprehensive Milestone 2 Verification Runner
 ```bash
 $env:PYTHONPATH="backend"
-python scripts/verify_milestone_1.py
+python scripts/verify_milestone_2.py
 ```
 
 ---
@@ -136,3 +166,11 @@ python scripts/verify_milestone_1.py
   * SQLAlchemy 2.0 models for academic taxonomy (`boards_curricula`, `grades_stages`, `subjects`, `chapters`, `topics`) and identity foundation (`users`, `roles`, `user_roles`, `student_profiles`).
   * Alembic initial async migration applied cleanly.
   * 10/10 backend tests passing; 4/4 frontend tests passing; production compilation verified.
+* **Milestone 2:** Secure Authentication, Authorization, and Academic Profile Management — **COMPLETE**
+  * **Backend Security:** Password hashing via bcrypt with salt; stateless JWT issuance and verification; in-memory sliding-window rate limiter protecting login and registration against brute-force attacks; role-aware authorization (`STUDENT`, `EDUCATOR`, `REVIEWER`, `ADMIN`).
+  * **Strict Data Isolation (IDOR Defense):** All student profile and onboarding queries derive identity solely from authenticated JWT claims (`current_user.id`), rejecting spoofed client parameters.
+  * **Relational Schema Migration:** Alembic migration `eeac6986a79e` adding `onboarding_completed` flag and `student_profile_subjects` join table.
+  * **Academic Onboarding Workflow:** Multi-step wizard supporting curriculum selection (CBSE, JEE Main, NEET), grade stage, subject selection with validation, and daily study goal configuration.
+  * **Privacy Compliance (DPDP Act 2023):** `DELETE /api/v1/student/account` self-service endpoint cleanly cascading removal of student profile, subject links, and user account.
+  * **Frontend Experience:** Modal authentication with instant switching between Sign In and Register; animated multi-step onboarding wizard; responsive student workspace displaying active board, grade, target exam year, subject badges, and interactive goal slider.
+  * **Automated Verification:** 24/24 backend tests passing; 10/10 frontend tests passing; production build verified with zero TypeScript errors.

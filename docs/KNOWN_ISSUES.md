@@ -61,3 +61,20 @@ Before proceeding to Milestone 1 implementation, the following key assumptions r
 4. **Multi-Tenancy & School Institutional Portals:**
    * *Assumption:* Institutional features (school admin portals, batch student rosters, teacher classroom assignments) are deferred to post-MVP releases to maintain intense focus on the direct student learning experience.
    * *Validation Needed:* Confirm whether B2B institutional features should remain out of MVP scope.
+
+---
+
+## 4. Milestone 2 Implementation Observations & Operational Status
+
+1. **SQLite Canonical Database Path Synchronization:**
+   * *Observation:* During Milestone 1, running Alembic from `backend/` versus running `pytest` or `scripts/run_backend.py` from repository root resolved `./project_campus_dev.db` into two distinct physical SQLite files.
+   * *Resolution in Milestone 2:* Enforced `BASE_DIR / "project_campus_dev.db"` across `backend/app/core/config.py` and canonical directory references in `alembic.ini`. The root file is now the single source of truth for local development.
+
+2. **Rate Limiting Persistence:**
+   * *Observation:* The `AuthRateLimiter` is implemented in-memory for zero-dependency local development. In a multi-worker or containerized cluster deployment, memory states are isolated per process.
+   * *Future Action:* For production staging, connect `AuthRateLimiter` to Redis to maintain distributed rate-limit counters.
+
+3. **Schema Migration for Onboarding:**
+   * *Observation:* Student onboarding required persistent multi-subject relationships and explicit completion tracking.
+   * *Resolution in Milestone 2:* Added `onboarding_completed` flag to `student_profiles` and created the `student_profile_subjects` association table via migration `eeac6986a79e`. Verified idempotent seeding and clean rollback capability.
+

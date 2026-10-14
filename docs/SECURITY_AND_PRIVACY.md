@@ -59,6 +59,15 @@ flowchart TD
 | **Approve / Publish Questions & Solutions** | Denied | Denied | Approve/Publish | Full Access |
 | **Manage Roles & System Audit Logs** | Denied | Denied | Denied | Full Access |
 
+### 2.4. Milestone 2 Implementation Verification
+* **Password Hashing:** Implemented via `bcrypt` with work factor 12 (`bcrypt.hashpw` / `bcrypt.checkpw`) in `app.core.security`. No plaintext passwords or password hashes are ever logged or exposed in API schemas.
+* **Token Transport:** Dual delivery mechanism implemented in `app.api.v1.endpoints.auth`:
+  1. Authorization Header Bearer token (`access_token` returned in JSON payload for programmatic and SPA consumption).
+  2. `HttpOnly`, `SameSite=Lax` session cookie (`access_token` cookie set on login/register and deleted on logout) providing XSS defense.
+* **Brute-Force & Rate Limiting:** `AuthRateLimiter` class implements sliding-window request throttling on sensitive auth endpoints (`/login`, `/register`). Exceeded attempts return standard HTTP 429 Too Many Requests responses.
+* **Insecure Direct Object Reference (IDOR) Protection:** Enforced by design in `app.api.deps.py` and `app.api.v1.endpoints.student.py`. All student profile and onboarding queries retrieve `current_user.id` exclusively from the decoded, cryptographically signed JWT payload. Route parameters cannot be used to read or modify other students' academic profiles.
+* **DPDP Act 2023 Account Erasure:** Implemented at `DELETE /api/v1/student/account`. Authenticated students can invoke self-service account deletion, immediately removing their user record, student profile, and subject join records.
+
 ---
 
 ## 3. Data Protection in Transit and at Rest

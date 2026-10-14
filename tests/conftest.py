@@ -1,10 +1,9 @@
 """Pytest Configuration and Fixtures for Project Campus Test Suite."""
 
 import asyncio
-import os
-import sys
 from pathlib import Path
-from typing import AsyncGenerator
+import sys
+from typing import AsyncGenerator, Dict, Tuple
 
 import pytest
 import pytest_asyncio
@@ -21,6 +20,7 @@ if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
 from app.core.database import get_db
+from app.core.seed import seed_initial_data
 from app.main import app
 from app.models.base import Base
 
@@ -55,7 +55,13 @@ async def setup_test_database():
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+
+    # Seed foundational taxonomy & roles into test DB
+    async with TestAsyncSessionLocal() as session:
+        await seed_initial_data(session)
+
     yield
+
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await test_engine.dispose()
@@ -82,7 +88,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(
         transport=transport, base_url="http://testserver"
     ) as ac:

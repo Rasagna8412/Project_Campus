@@ -1,4 +1,4 @@
-"""Identity, Role, and Student Profile Models."""
+"""Identity, Role, Student Profile, and Subject Enrollment Models."""
 
 import uuid
 from datetime import datetime, timezone
@@ -57,13 +57,14 @@ class User(Base, TimestampMixin):
 
     # Relationships
     user_roles: Mapped[List["UserRole"]] = relationship(
-        "UserRole", back_populates="user", cascade="all, delete-orphan"
+        "UserRole", back_populates="user", cascade="all, delete-orphan", lazy="selectin"
     )
     student_profile: Mapped[Optional["StudentProfile"]] = relationship(
         "StudentProfile",
         back_populates="user",
         uselist=False,
         cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
 
@@ -90,7 +91,7 @@ class UserRole(Base):
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="user_roles")
-    role: Mapped["Role"] = relationship("Role", back_populates="user_roles")
+    role: Mapped["Role"] = relationship("Role", back_populates="user_roles", lazy="selectin")
 
 
 class StudentProfile(Base, TimestampMixin):
@@ -127,12 +128,51 @@ class StudentProfile(Base, TimestampMixin):
     preferred_language: Mapped[str] = mapped_column(
         String(10), default="en", nullable=False
     )
+    onboarding_completed: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
 
     # Relationships
     user: Mapped["User"] = relationship(
         "User", back_populates="student_profile"
     )
     target_curriculum: Mapped[Optional["BoardCurriculum"]] = relationship(
-        "BoardCurriculum"
+        "BoardCurriculum", lazy="selectin"
     )
-    grade_stage: Mapped[Optional["GradeStage"]] = relationship("GradeStage")
+    grade_stage: Mapped[Optional["GradeStage"]] = relationship(
+        "GradeStage", lazy="selectin"
+    )
+    selected_subjects: Mapped[List["StudentProfileSubject"]] = relationship(
+        "StudentProfileSubject",
+        back_populates="profile",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class StudentProfileSubject(Base):
+    """Association between a student's profile and their enrolled academic subjects."""
+
+    __tablename__ = "student_profile_subjects"
+
+    profile_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("student_profiles.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    subject_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("subjects.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    assigned_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    # Relationships
+    profile: Mapped["StudentProfile"] = relationship(
+        "StudentProfile", back_populates="selected_subjects"
+    )
+    subject: Mapped["Subject"] = relationship("Subject", lazy="selectin")

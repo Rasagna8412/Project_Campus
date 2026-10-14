@@ -1,9 +1,13 @@
 """Application Configuration Management."""
 
 import json
+from pathlib import Path
 from typing import List, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+DEFAULT_DB_PATH = (BASE_DIR / "project_campus_dev.db").as_posix()
 
 
 class Settings(BaseSettings):
@@ -23,8 +27,20 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
-    DATABASE_URL: str = "sqlite+aiosqlite:///./project_campus_dev.db"
+    DATABASE_URL: str = f"sqlite+aiosqlite:///{DEFAULT_DB_PATH}"
     LOG_LEVEL: str = "INFO"
+
+    # Authentication & Session Security
+    SECRET_KEY: str = "dev-insecure-secret-key-change-in-production-campus-2026-xyz"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    AUTH_COOKIE_NAME: str = "campus_access_token"
+    AUTH_COOKIE_SECURE: bool = False
+    AUTH_COOKIE_SAMESITE: str = "lax"
+
+    # Rate Limiting
+    AUTH_RATE_LIMIT_MAX_ATTEMPTS: int = 5
+    AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 60
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
