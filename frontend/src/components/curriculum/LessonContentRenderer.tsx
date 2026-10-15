@@ -8,7 +8,7 @@ interface LessonContentRendererProps {
 /**
  * Parses inline and display LaTeX math surrounded by $ or $$
  */
-function renderMathInText(text: string): string {
+export function renderMathInText(text: string): string {
   // First, replace display math $$...$$
   let processed = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
     try {
@@ -39,7 +39,7 @@ function renderMathInText(text: string): string {
 /**
  * Formats basic Markdown structures: bold, italic, code, headings, lists, tables
  */
-function renderMarkdown(content: string): string {
+export function renderMarkdown(content: string): string {
   const lines = content.split('\n');
   const result: string[] = [];
   let inList = false;

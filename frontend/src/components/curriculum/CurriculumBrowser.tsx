@@ -10,6 +10,7 @@ import {
   FileText,
   GraduationCap,
   Layers,
+  PenTool,
   Sparkles,
 } from 'lucide-react';
 import { getCurricula, getSubjectChapters, getTopicLessons } from '../../services/api';
@@ -19,12 +20,14 @@ import { BreadcrumbItem } from './LessonViewer';
 
 interface CurriculumBrowserProps {
   onSelectLesson: (lessonId: string, breadcrumbs: BreadcrumbItem[]) => void;
+  onStartPractice?: (topicId: string, topicTitle?: string) => void;
   initialBoardCode?: string;
   initialGradeCode?: string;
 }
 
 export const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({
   onSelectLesson,
+  onStartPractice,
   initialBoardCode,
   initialGradeCode,
 }) => {
@@ -390,15 +393,32 @@ export const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({
           {/* Right Column: Lessons for Selected Topic (7 cols) */}
           <div className="lg:col-span-7">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sticky top-6">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-                <h3 className="font-bold text-slate-900 text-base flex items-center space-x-2">
-                  <FileText className="w-4 h-4 text-brand-600" />
-                  <span>Structured Lessons</span>
-                </h3>
-                {selectedTopicId && (
-                  <span className="text-xs text-slate-500 font-medium">
-                    Topic {chapters.flatMap((c) => c.topics).find((t) => t.id === selectedTopicId)?.topic_number || ''}
-                  </span>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <h3 className="font-bold text-slate-900 text-base flex items-center space-x-2">
+                    <FileText className="w-4 h-4 text-brand-600" />
+                    <span>Structured Lessons</span>
+                  </h3>
+                  {selectedTopicId && (
+                    <span className="text-xs text-slate-500 font-medium">
+                      (Topic {chapters.flatMap((c) => c.topics).find((t) => t.id === selectedTopicId)?.topic_number || ''})
+                    </span>
+                  )}
+                </div>
+
+                {selectedTopicId && onStartPractice && (
+                  <button
+                    onClick={() => {
+                      const topic = chapters
+                        .flatMap((c) => c.topics)
+                        .find((t) => t.id === selectedTopicId);
+                      onStartPractice(selectedTopicId, topic?.title);
+                    }}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold text-xs rounded-lg transition-colors border border-brand-200 shadow-sm"
+                  >
+                    <PenTool className="w-3.5 h-3.5 text-brand-600" />
+                    <span>Practise Questions</span>
+                  </button>
                 )}
               </div>
 

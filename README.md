@@ -120,6 +120,12 @@ python scripts/run_backend.py
   * `GET /api/v1/curricula/chapters/{chapter_id}/topics` — Topics under chapter with lesson counts
   * `GET /api/v1/curricula/topics/{topic_id}/lessons` — Topic published lessons strictly excluding drafts
   * `GET /api/v1/curricula/lessons/{lesson_id}` — Full lesson detail and ordered sections (404 for unapproved)
+  * `GET /api/v1/practice/topics/{topic_id}/questions` — Student topic questions (answer keys and derivations omitted)
+  * `POST /api/v1/practice/sessions` — Start deliberate practice session for a topic
+  * `GET /api/v1/practice/sessions/{session_id}` — Practice session progress and question retrieval (IDOR protected)
+  * `POST /api/v1/practice/submit` — Atomic answer evaluation and educator solution reveal
+  * `POST /api/v1/practice/questions/{id}/report-errata` — Student errata report submission with issue categorization
+  * `GET /api/v1/practice/history` — Student practice history and topic accuracy metrics
   * `GET /api/v1/student/profile` — Fetch current student's academic profile
   * `POST /api/v1/student/onboarding` — Multi-step academic onboarding submission
   * `PUT /api/v1/student/profile` — Update study goals & language preference
@@ -140,14 +146,14 @@ npm run build
 
 ## Running Automated Tests
 
-### Backend Tests (Pytest - 47 Tests)
+### Backend Tests (Pytest - 61 Tests)
 ```bash
 # Run all backend unit & integration tests
 $env:PYTHONPATH="backend"
 .\.venv\Scripts\pytest.exe -v
 ```
 
-### Frontend Tests (Vitest - 19 Tests across 6 Suites)
+### Frontend Tests (Vitest - 24 Tests across 7 Suites)
 ```bash
 cd frontend
 npm test
@@ -161,8 +167,10 @@ npm test
 * **Milestone 1:** Development Environment, Core Scaffolding, and Database Schema — **COMPLETE**
 * **Milestone 2:** Secure Authentication, Authorization, and Academic Profile Management — **COMPLETE**
 * **Milestone 3:** Curriculum Content Foundation and Structured Lesson Viewer — **COMPLETE**
-  * **Relational Schema Migration:** Alembic migration `ac0e5ff2e448` adding `lessons` and `lesson_sections` tables with cascading foreign keys and unique constraints (11 tables active).
-  * **Verified Academic Content:** CBSE Class 12 Physics, Chemistry, and Mathematics chapters, topics, learning objectives, and published lessons seeded with KaTeX formulas and worked examples.
-  * **Editorial Publication Safeguards:** Strict `PUBLISHED` status filtering on student endpoints; `DRAFT` and `IN_REVIEW` lessons return 404, preventing unauthorized leakage of unverified educational content.
-  * **Structured Lesson Viewer & Curriculum Browser:** Full hierarchy navigation (Curriculum -> Grade -> Subject -> Chapter -> Topic -> Lesson), breadcrumb navigation, and distinct pedagogical section rendering for `CONCEPT`, `KEY_FORMULA`, `WORKED_EXAMPLE`, and `NOTE`.
-  * **Automated Verification:** 47/47 backend tests passing; 19/19 frontend tests passing; production compilation verified with zero TypeScript errors.
+* **Milestone 4:** Question Bank, Topic-Based Practice Engine, and Assessment Foundation — **COMPLETE**
+  * **Relational Assessment Schema:** Alembic migration `0cb437c7683c` adding `questions`, `question_options`, `question_answer_keys`, `practice_sessions`, `question_attempts`, and `question_errata_reports` tables (17 tables active).
+  * **Supported Question Formats:** Single-Choice (MCQ), Multiple-Choice (Multi-select), Numerical with decimal tolerance, and Integer responses.
+  * **Answer Key Security Invariant:** Questions queried by students strictly omit answer keys, correct option sets, and educator solutions. Solutions are revealed only upon atomic submission of an attempt.
+  * **Editorial Publication Isolation:** `DRAFT` and `IN_REVIEW` questions are 100% excluded from student endpoints (returning 404).
+  * **Interactive Practice UI & KaTeX Math:** `QuestionCard`, `PracticeModal` stepper, `ErrataModal` issue reporting, and dashboard practice history.
+  * **Automated Verification:** 61/61 backend tests passing; 24/24 frontend tests passing; production compilation verified with zero TypeScript errors.

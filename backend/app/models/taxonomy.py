@@ -9,6 +9,7 @@ from app.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.content import Lesson
+    from app.models.assessment import Question
 
 
 class BoardCurriculum(Base, TimestampMixin):
@@ -180,4 +181,9 @@ class Topic(Base, TimestampMixin):
         back_populates="topic",
         cascade="all, delete-orphan",
         order_by="Lesson.display_order",
+    )
+    questions: Mapped[List["Question"]] = relationship(
+        "Question",
+        back_populates="topic",
+        cascade="all, delete-orphan",
     )

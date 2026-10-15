@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BookOpen,
   Clock,
@@ -8,18 +8,24 @@ import {
   Trash2,
   AlertTriangle,
   Loader2,
+  PenTool,
+  Award,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { updateStudentProfile } from '../../services/api';
+import { getPracticeHistory, updateStudentProfile } from '../../services/api';
+import { PracticeSessionSummary } from '../../types/assessment';
 
 interface StudentDashboardProps {
   onOpenOnboarding: () => void;
   onOpenLessons: () => void;
+  onStartPractice?: (topicId: string, topicTitle?: string) => void;
 }
 
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   onOpenOnboarding,
   onOpenLessons,
+  onStartPractice,
 }) => {
   const { user, profile, refreshProfile, deleteAccount } = useAuth();
 
@@ -30,6 +36,31 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [isSavingGoal, setIsSavingGoal] = useState<boolean>(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState<boolean>(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+
+  // Practice history state
+  const [history, setHistory] = useState<PracticeSessionSummary[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(true);
+
+  useEffect(() => {
+    let mounted = true;
+    getPracticeHistory(5)
+      .then((data) => {
+        if (mounted) {
+          setHistory(Array.isArray(data) ? data : []);
+          setLoadingHistory(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setHistory([]);
+          setLoadingHistory(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleUpdateGoal = async () => {
     setIsSavingGoal(true);
@@ -245,6 +276,92 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Topic Practice & Assessment History Card */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+          <div>
+            <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-brand-700">
+              <Award className="w-4 h-4 text-brand-600" />
+              <span>Practice & Assessment Activity</span>
+            </div>
+            <h3 className="text-base font-bold text-slate-900 mt-0.5">
+              Recent Topic Practice Sessions
+            </h3>
+          </div>
+
+          <button
+            onClick={onOpenLessons}
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 transition-colors"
+          >
+            <PenTool className="w-3.5 h-3.5 text-brand-600" />
+            <span>Practise Curriculum Topics</span>
+          </button>
+        </div>
+
+        {loadingHistory ? (
+          <div className="py-8 text-center">
+            <Loader2 className="w-5 h-5 animate-spin text-brand-600 mx-auto mb-2" />
+            <span className="text-xs text-slate-500">Loading practice progress...</span>
+          </div>
+        ) : !Array.isArray(history) || history.length === 0 ? (
+          <div className="py-8 text-center text-slate-500 text-xs">
+            <Sparkles className="w-7 h-7 text-brand-300 mx-auto mb-2" />
+            <p className="font-semibold text-slate-700">No Practice Sessions Completed Yet</p>
+            <p className="text-slate-400 mt-1 max-w-sm mx-auto">
+              Select any topic from your curriculum lessons to launch targeted question practice and track your accuracy.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {history.map((sess) => {
+              const accuracy =
+                sess.total_questions > 0
+                  ? Math.round((sess.correct_count / sess.total_questions) * 100)
+                  : 0;
+
+              return (
+                <div
+                  key={sess.id}
+                  className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                >
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900">
+                      {sess.topic_title || 'Topic Practice Session'}
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Completed: {sess.total_questions} questions • {sess.correct_count} correct
+                    </p>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                        accuracy >= 75
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : accuracy >= 50
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : 'bg-rose-50 text-rose-700 border border-rose-200'
+                      }`}
+                    >
+                      {accuracy}% Accuracy
+                    </span>
+
+                    {onStartPractice && (
+                      <button
+                        onClick={() => onStartPractice(sess.topic_id, sess.topic_title)}
+                        className="text-xs font-semibold text-brand-600 hover:text-brand-800 transition-colors"
+                      >
+                        Retake →
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Privacy and Account Rights Card (DPDP Act Compliance) */}

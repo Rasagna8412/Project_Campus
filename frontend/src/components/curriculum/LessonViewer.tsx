@@ -7,6 +7,7 @@ import {
   Clock,
   HelpCircle,
   Lightbulb,
+  PenTool,
   ShieldCheck,
   Sigma,
   Target,
@@ -24,12 +25,14 @@ interface LessonViewerProps {
   lessonId: string;
   onBack: () => void;
   breadcrumbs?: BreadcrumbItem[];
+  onStartPractice?: (topicId: string, topicTitle?: string) => void;
 }
 
 export const LessonViewer: React.FC<LessonViewerProps> = ({
   lessonId,
   onBack,
   breadcrumbs = [],
+  onStartPractice,
 }) => {
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -257,6 +260,31 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
           </div>
         ))}
       </section>
+
+      {/* Practice Topic Callout */}
+      {onStartPractice && lesson.topic_id && (
+        <section
+          aria-label="Practice Topic"
+          className="mt-10 bg-gradient-to-r from-brand-50 to-indigo-50 border border-brand-200 rounded-2xl p-6 sm:p-8 text-center shadow-sm"
+        >
+          <div className="w-12 h-12 rounded-xl bg-brand-600 text-white flex items-center justify-center mx-auto mb-3 shadow-md">
+            <PenTool className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 mb-2">
+            Ready to Test Your Understanding?
+          </h3>
+          <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto mb-5 leading-relaxed">
+            Consolidate your knowledge with deliberate practice questions, immediate feedback, and verified step-by-step educator derivations.
+          </p>
+          <button
+            onClick={() => onStartPractice(lesson.topic_id, lesson.title)}
+            className="inline-flex items-center space-x-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-xl shadow-md transition-all hover:scale-[1.02]"
+          >
+            <PenTool className="w-4 h-4" />
+            <span>Practise Topic Questions</span>
+          </button>
+        </section>
+      )}
 
       {/* Footer Navigation */}
       <footer className="mt-12 pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">

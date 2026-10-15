@@ -21,6 +21,17 @@ from app.models.taxonomy import (
     Subject,
     Topic,
 )
+from app.models.assessment import (
+    DifficultyLevel,
+    ErrataIssueType,
+    PracticeSession,
+    Question,
+    QuestionAnswerKey,
+    QuestionAttempt,
+    QuestionErrataReport,
+    QuestionOption,
+    QuestionType,
+)
 
 __all__ = [
     "Base",
@@ -39,4 +50,13 @@ __all__ = [
     "LessonSection",
     "ContentStatus",
     "SectionType",
+    "Question",
+    "QuestionOption",
+    "QuestionAnswerKey",
+    "PracticeSession",
+    "QuestionAttempt",
+    "QuestionErrataReport",
+    "QuestionType",
+    "DifficultyLevel",
+    "ErrataIssueType",
 ]

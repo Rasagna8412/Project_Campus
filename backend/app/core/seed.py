@@ -176,3 +176,7 @@ async def seed_initial_data(session: AsyncSession) -> None:
     # 3. Seed Milestone 3 Academic Content (Chapters, Topics, Lessons, Sections)
     from app.core.seed_lessons import seed_academic_content
     await seed_academic_content(session)
+
+    # 4. Seed Milestone 4 Question Bank & Answer Keys
+    from app.core.seed_questions import seed_academic_questions
+    await seed_academic_questions(session)

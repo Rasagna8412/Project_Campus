@@ -10,6 +10,7 @@ import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
 import { StudentDashboard } from './components/dashboard/StudentDashboard';
 import { CurriculumBrowser } from './components/curriculum/CurriculumBrowser';
 import { LessonViewer, BreadcrumbItem } from './components/curriculum/LessonViewer';
+import { PracticeModal } from './components/practice/PracticeModal';
 import { checkBackendHealth } from './services/api';
 import { HealthResponse, ConnectionState } from './types/api';
 import {
@@ -36,6 +37,10 @@ const AppContent: React.FC = () => {
   const [activeView, setActiveView] = useState<'home' | 'lessons'>('home');
   const [currentLessonId, setCurrentLessonId] = useState<string | null>(null);
   const [lessonBreadcrumbs, setLessonBreadcrumbs] = useState<BreadcrumbItem[]>([]);
+  const [activePracticeTopic, setActivePracticeTopic] = useState<{
+    topicId: string;
+    topicTitle?: string;
+  } | null>(null);
 
   // Modal and Onboarding View States
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -146,6 +151,9 @@ const AppContent: React.FC = () => {
             lessonId={currentLessonId}
             onBack={() => setCurrentLessonId(null)}
             breadcrumbs={lessonBreadcrumbs}
+            onStartPractice={(topicId, title) =>
+              setActivePracticeTopic({ topicId, topicTitle: title })
+            }
           />
         ) : activeView === 'lessons' ? (
           /* 2. If browsing lessons, show CurriculumBrowser */
@@ -160,6 +168,9 @@ const AppContent: React.FC = () => {
             </div>
             <CurriculumBrowser
               onSelectLesson={handleSelectLesson}
+              onStartPractice={(topicId, title) =>
+                setActivePracticeTopic({ topicId, topicTitle: title })
+              }
               initialBoardCode={profile?.target_curriculum_code || undefined}
               initialGradeCode={profile?.grade_stage_code || undefined}
             />
@@ -176,6 +187,9 @@ const AppContent: React.FC = () => {
               <StudentDashboard
                 onOpenOnboarding={() => setIsOnboardingOpen(true)}
                 onOpenLessons={handleOpenLessons}
+                onStartPractice={(topicId, title) =>
+                  setActivePracticeTopic({ topicId, topicTitle: title })
+                }
               />
             )}
           </div>
@@ -302,6 +316,17 @@ const AppContent: React.FC = () => {
         onClose={() => setIsAuthModalOpen(false)}
         initialMode={authModalMode}
       />
+
+      {/* Topic Practice Modal */}
+      {activePracticeTopic && (
+        <PracticeModal
+          topicId={activePracticeTopic.topicId}
+          topicTitle={activePracticeTopic.topicTitle}
+          isOpen={!!activePracticeTopic}
+          onClose={() => setActivePracticeTopic(null)}
+          onOpenLessons={handleOpenLessons}
+        />
+      )}
     </div>
   );
 };

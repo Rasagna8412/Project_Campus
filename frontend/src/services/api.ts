@@ -12,6 +12,16 @@ import {
   LessonSummary,
   Topic,
 } from '../types/content';
+import {
+  CreateErrataPayload,
+  CreatePracticeSessionPayload,
+  ErrataReport,
+  PracticeSession,
+  PracticeSessionSummary,
+  QuestionEvaluation,
+  StudentQuestion,
+  SubmitAnswerPayload,
+} from '../types/assessment';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const TOKEN_STORAGE_KEY = 'campus_auth_token';
@@ -235,3 +245,64 @@ export async function deleteStudentAccount(): Promise<{ status: string; message:
     removeAuthToken();
   }
 }
+
+/**
+ * Question Bank, Topic Practice Engine & Assessment
+ */
+export async function getTopicQuestions(
+  topicId: string,
+  difficulty?: string
+): Promise<StudentQuestion[]> {
+  const query = difficulty ? `?difficulty=${encodeURIComponent(difficulty)}` : '';
+  return await apiRequest<StudentQuestion[]>(
+    `/api/v1/practice/topics/${topicId}/questions${query}`,
+    { method: 'GET' }
+  );
+}
+
+export async function createPracticeSession(
+  payload: CreatePracticeSessionPayload
+): Promise<PracticeSession> {
+  return await apiRequest<PracticeSession>('/api/v1/practice/sessions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getPracticeSession(sessionId: string): Promise<PracticeSession> {
+  return await apiRequest<PracticeSession>(`/api/v1/practice/sessions/${sessionId}`, {
+    method: 'GET',
+  });
+}
+
+export async function submitAnswer(
+  payload: SubmitAnswerPayload
+): Promise<QuestionEvaluation> {
+  return await apiRequest<QuestionEvaluation>('/api/v1/practice/submit', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function reportQuestionErrata(
+  questionId: string,
+  payload: CreateErrataPayload
+): Promise<ErrataReport> {
+  return await apiRequest<ErrataReport>(
+    `/api/v1/practice/questions/${questionId}/report-errata`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function getPracticeHistory(
+  limit = 20
+): Promise<PracticeSessionSummary[]> {
+  return await apiRequest<PracticeSessionSummary[]>(
+    `/api/v1/practice/history?limit=${limit}`,
+    { method: 'GET' }
+  );
+}
+

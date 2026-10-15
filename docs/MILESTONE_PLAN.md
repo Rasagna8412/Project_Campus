@@ -89,16 +89,21 @@ gantt
 ---
 
 ### Milestone 4: Question Bank, Assessment Engine & Answer Validation
+* **Status:** Completed & Verified (October 15, 2026)
 * **Goal:** Build the practice engine with instant evaluation, verified step-by-step solutions, and attempt tracking.
-* **Deliverables:**
-  * Question schemas supporting Single-Choice (MCQ), Multiple-Choice (Multi-select), Numerical with tolerance, and Integer types.
-  * Backend assessment evaluation service: Deterministic answer validation, scoring, and atomic attempt recording.
-  * Frontend Practice Interface: Distraction-free question cards, interactive option selectors, numerical keypad input, instant score reveal, and full educator solution breakdown.
-  * Errata Reporting button on every question card.
-* **Exit Criteria:**
-  * Practice quiz of 5 questions can be initiated, answered, scored, and reviewed.
-  * Edge cases (rounding decimals in numerical questions, partial marking in multi-select) covered by automated tests.
-  * Errata submission persists into `content_errata_reports`.
+* **Deliverables Delivered:**
+  * Six database entities (`Question`, `QuestionOption`, `QuestionAnswerKey`, `PracticeSession`, `QuestionAttempt`, `QuestionErrataReport`) via Alembic migration `0cb437c7683c`.
+  * Support for Single-Choice (MCQ), Multiple-Choice (Multi-select), Numerical with tolerance, and Integer question types.
+  * Strict answer key security invariant: public and student question listing endpoints never leak answer keys or educator solutions.
+  * Editorial publication gating: `DRAFT` and `IN_REVIEW` questions are 100% excluded from student endpoints.
+  * Backend endpoints for question retrieval, session creation, IDOR-protected session status, atomic answer evaluation, errata reporting, and practice history.
+  * Authentic CBSE Class 12 Physics, Chemistry, and Mathematics questions seeded with KaTeX formulas and step-by-step solutions.
+  * Interactive Frontend Practice Engine: `QuestionCard`, `PracticeModal`, `ErrataModal`, and dashboard practice history.
+  * 14 new backend tests (61 total passing) + 5 new frontend tests (24 total passing).
+* **Exit Criteria Verified:**
+  * Topic practice session can be launched from curriculum browser or lesson viewer, answered, scored, and reviewed.
+  * Tolerance evaluation, integer validation, multi-select matching, and draft exclusion verified by automated test suites.
+  * Question errata reporting verified persisting into database with issue types.
 
 ---
 

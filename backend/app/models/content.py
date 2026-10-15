@@ -2,7 +2,10 @@
 
 import enum
 import uuid
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.assessment import Question
 from sqlalchemy import (
     Boolean,
     ForeignKey,
@@ -89,6 +92,10 @@ class Lesson(Base, TimestampMixin):
         cascade="all, delete-orphan",
         order_by="LessonSection.display_order",
         lazy="selectin",
+    )
+    questions: Mapped[List["Question"]] = relationship(
+        "Question",
+        back_populates="lesson",
     )
 
 
