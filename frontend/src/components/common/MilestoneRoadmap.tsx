@@ -1,28 +1,28 @@
 import React from 'react';
-import { CheckCircle2, Clock, Sparkles, BookOpen, Brain, Calendar, BarChart3, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, Sparkles, BookOpen, Brain, Calendar, BarChart3, ShieldAlert } from 'lucide-react';
 
 export const MilestoneRoadmap: React.FC = () => {
   const modules = [
     {
       title: 'Scaffolding & Core Architecture',
       milestone: 'Milestone 1',
-      status: 'active',
+      status: 'completed',
       icon: CheckCircle2,
       desc: 'FastAPI service, React+TS shell, SQLAlchemy models, Alembic migrations, health monitoring.',
     },
     {
       title: 'Authentication & Academic Profiles',
       milestone: 'Milestone 2',
-      status: 'planned',
-      icon: Clock,
-      desc: 'Argon2id hashing, JWT access/refresh lifecycle, RBAC, student target exam onboarding.',
+      status: 'completed',
+      icon: CheckCircle2,
+      desc: 'Argon2id hashing, JWT access/refresh lifecycle, RBAC, student target exam onboarding, DPDP compliance.',
     },
     {
       title: 'Curriculum & Structured Lessons',
       milestone: 'Milestone 3',
-      status: 'planned',
+      status: 'active',
       icon: BookOpen,
-      desc: 'CBSE & JEE Main syllabus trees, KaTeX reading modules, educator CMS with markdown preview.',
+      desc: 'CBSE, JEE Main & NEET syllabus trees, KaTeX structured lesson viewer, ordered sections, publication review.',
     },
     {
       title: 'Question Bank & Evaluation Engine',
@@ -65,13 +65,14 @@ export const MilestoneRoadmap: React.FC = () => {
         </div>
         <span className="flex items-center space-x-1 text-xs text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 font-medium">
           <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-          <span>No Premature or Fake Mocks</span>
+          <span>Strict Milestone Boundaries</span>
         </span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {modules.map((mod, index) => {
           const Icon = mod.icon;
+          const isCompleted = mod.status === 'completed';
           const isActive = mod.status === 'active';
 
           return (
@@ -79,7 +80,9 @@ export const MilestoneRoadmap: React.FC = () => {
               key={index}
               className={`p-4 rounded-lg border transition-all ${
                 isActive
-                  ? 'border-brand-300 bg-brand-50/50 shadow-sm ring-1 ring-brand-200'
+                  ? 'border-brand-500 bg-brand-50/50 shadow-sm ring-1 ring-brand-300'
+                  : isCompleted
+                  ? 'border-emerald-200 bg-emerald-50/30'
                   : 'border-slate-200 bg-slate-50/50 opacity-80'
               }`}
             >
@@ -87,11 +90,13 @@ export const MilestoneRoadmap: React.FC = () => {
                 <span
                   className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
                     isActive
+                      ? 'bg-brand-100 text-brand-800 border border-brand-200'
+                      : isCompleted
                       ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                       : 'bg-slate-200 text-slate-600'
                   }`}
                 >
-                  {isActive ? 'Current Release' : 'Planned'}
+                  {isActive ? 'Current Release' : isCompleted ? 'Completed' : 'Planned'}
                 </span>
                 <span className="text-xs font-semibold text-slate-500">{mod.milestone}</span>
               </div>
@@ -99,7 +104,7 @@ export const MilestoneRoadmap: React.FC = () => {
               <div className="flex items-start space-x-2.5 mt-2">
                 <Icon
                   className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
-                    isActive ? 'text-brand-600' : 'text-slate-400'
+                    isActive ? 'text-brand-600' : isCompleted ? 'text-emerald-600' : 'text-slate-400'
                   }`}
                 />
                 <div>

@@ -6,7 +6,7 @@ export const CurriculumFoundation: React.FC = () => {
     {
       level: '1. Boards & Curricula',
       entity: 'boards_curricula',
-      examples: 'CBSE, JEE Main, NEET, ICSE',
+      examples: 'CBSE, JEE Main, NEET',
       desc: 'National and state academic examination boards',
     },
     {
@@ -24,14 +24,26 @@ export const CurriculumFoundation: React.FC = () => {
     {
       level: '4. Chapters & Units',
       entity: 'chapters',
-      examples: 'Electrostatics, Thermodynamics, Kinematics',
+      examples: 'Electrostatics, Chemical Kinetics, Integrals',
       desc: 'Syllabus units with structured display sequences',
     },
     {
       level: '5. Granular Topics',
       entity: 'topics',
-      examples: "Coulomb's Law, Electric Dipoles, Gauss's Law",
-      desc: 'Target concept units for mastery tracking and assessment',
+      examples: "Coulomb's Law, Rate Laws, Definite Integrals",
+      desc: 'Target concept units for mastery tracking and learning progression',
+    },
+    {
+      level: '6. Structured Lessons',
+      entity: 'lessons',
+      examples: 'Verified Lessons with Learning Objectives',
+      desc: 'Verified educational units with publication workflow (Draft, In-Review, Published)',
+    },
+    {
+      level: '7. Content Sections',
+      entity: 'lesson_sections',
+      examples: 'Concepts, Formulas, Worked Examples, Notes',
+      desc: 'Ordered pedagogical sections rendered with KaTeX mathematical typesetting',
     },
   ];
 
@@ -39,10 +51,10 @@ export const CurriculumFoundation: React.FC = () => {
     <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
       <div className="flex items-center space-x-2 mb-4">
         <Database className="w-5 h-5 text-brand-600" />
-        <h2 className="text-base font-bold text-slate-900">Foundational Curriculum Schema</h2>
+        <h2 className="text-base font-bold text-slate-900">Foundational Curriculum & Content Schema</h2>
       </div>
       <p className="text-xs text-slate-600 mb-6">
-        Milestone 1 establishes the relational schema backbone. The entities below are migrated and verified in the database:
+        Milestone 3 establishes structured lessons and ordered content sections. The entities below are migrated and active in the database:
       </p>
 
       <div className="space-y-3">
@@ -75,9 +87,9 @@ export const CurriculumFoundation: React.FC = () => {
       <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
         <span className="flex items-center space-x-1">
           <Layers className="w-4 h-4 text-emerald-600" />
-          <span>Alembic Migration: Initial Schema (9 Tables Active)</span>
+          <span>Alembic Migrations: 11 Tables Active (ac0e5ff2e448 head)</span>
         </span>
-        <span className="font-semibold text-emerald-700">Verified by 10 Automated Unit Tests</span>
+        <span className="font-semibold text-emerald-700">Verified by Automated Full-Stack Tests</span>
       </div>
     </div>
   );

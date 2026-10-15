@@ -8,8 +8,9 @@ import {
   XCircle,
   LogIn,
   UserPlus,
-  LogOut,
+  BookOpen,
   Compass,
+  LogOut,
 } from 'lucide-react';
 import { HealthResponse, ConnectionState } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
@@ -22,6 +23,8 @@ interface HeaderProps {
   isRefreshing: boolean;
   onOpenAuth: (mode: 'signin' | 'register') => void;
   onOpenOnboarding: () => void;
+  onOpenLessons?: () => void;
+  onOpenHome?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -32,6 +35,8 @@ export const Header: React.FC<HeaderProps> = ({
   isRefreshing,
   onOpenAuth,
   onOpenOnboarding,
+  onOpenLessons,
+  onOpenHome,
 }) => {
   const { user, profile, isAuthenticated, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -49,20 +54,23 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand identity */}
-        <div className="flex items-center space-x-3">
+        <button
+          onClick={onOpenHome}
+          className="flex items-center space-x-3 text-left focus:outline-none"
+        >
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-600 to-brand-800 flex items-center justify-center text-white shadow-md">
             <GraduationCap className="w-6 h-6" aria-hidden="true" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xl font-bold tracking-tight text-slate-900">Project Campus</span>
-              <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-brand-50 text-brand-700 border border-brand-200">
-                Milestone 2 Active
+              <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                Milestone 3 Active
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">Academic Learning & Examination Platform</p>
           </div>
-        </div>
+        </button>
 
         {/* Right side controls: Health Badge + Auth Controls */}
         <div className="flex items-center space-x-4">
@@ -120,6 +128,17 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </div>
 
+              {onOpenLessons && (
+                <button
+                  onClick={onOpenLessons}
+                  className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors"
+                  title="Browse Lessons"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-brand-600" />
+                  <span>Lessons</span>
+                </button>
+              )}
+
               <button
                 onClick={onOpenOnboarding}
                 className="hidden lg:inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
@@ -141,6 +160,16 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           ) : (
             <div className="flex items-center space-x-2 pl-2 border-l border-slate-200">
+              {onOpenLessons && (
+                <button
+                  onClick={onOpenLessons}
+                  className="hidden sm:inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-brand-600" />
+                  <span>Browse Lessons</span>
+                </button>
+              )}
+
               <button
                 onClick={() => onOpenAuth('signin')}
                 className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"

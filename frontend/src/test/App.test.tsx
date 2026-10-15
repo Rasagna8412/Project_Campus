@@ -25,8 +25,8 @@ describe('Project Campus App Component', () => {
 
     const brandElements = screen.getAllByText('Project Campus');
     expect(brandElements.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Milestone 2 Active')).toBeInTheDocument();
-    expect(screen.getByText('Foundational Curriculum Schema')).toBeInTheDocument();
+    expect(screen.getByText('Milestone 3 Active')).toBeInTheDocument();
+    expect(screen.getByText(/Foundational Curriculum/i)).toBeInTheDocument();
   });
 
   it('displays connected status when real or mocked backend responds healthy', async () => {

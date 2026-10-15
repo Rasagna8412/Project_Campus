@@ -6,6 +6,12 @@ import {
   TokenResponse,
   User,
 } from '../types/auth';
+import {
+  Chapter,
+  LessonDetail,
+  LessonSummary,
+  Topic,
+} from '../types/content';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const TOKEN_STORAGE_KEY = 'campus_auth_token';
@@ -166,6 +172,30 @@ export async function getCurrentUser(): Promise<User> {
  */
 export async function getCurricula(): Promise<CurriculumBoard[]> {
   return await apiRequest<CurriculumBoard[]>('/api/v1/curricula/', { method: 'GET' });
+}
+
+export async function getSubjectChapters(subjectId: string): Promise<Chapter[]> {
+  return await apiRequest<Chapter[]>(`/api/v1/curricula/subjects/${subjectId}/chapters`, {
+    method: 'GET',
+  });
+}
+
+export async function getChapterTopics(chapterId: string): Promise<Topic[]> {
+  return await apiRequest<Topic[]>(`/api/v1/curricula/chapters/${chapterId}/topics`, {
+    method: 'GET',
+  });
+}
+
+export async function getTopicLessons(topicId: string): Promise<LessonSummary[]> {
+  return await apiRequest<LessonSummary[]>(`/api/v1/curricula/topics/${topicId}/lessons`, {
+    method: 'GET',
+  });
+}
+
+export async function getLessonDetail(lessonId: string): Promise<LessonDetail> {
+  return await apiRequest<LessonDetail>(`/api/v1/curricula/lessons/${lessonId}`, {
+    method: 'GET',
+  });
 }
 
 /**

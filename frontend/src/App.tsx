@@ -8,6 +8,8 @@ import { MilestoneRoadmap } from './components/common/MilestoneRoadmap';
 import { AuthModal } from './components/auth/AuthModal';
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
 import { StudentDashboard } from './components/dashboard/StudentDashboard';
+import { CurriculumBrowser } from './components/curriculum/CurriculumBrowser';
+import { LessonViewer, BreadcrumbItem } from './components/curriculum/LessonViewer';
 import { checkBackendHealth } from './services/api';
 import { HealthResponse, ConnectionState } from './types/api';
 import {
@@ -19,15 +21,21 @@ import {
   ArrowRight,
   ShieldCheck,
   UserPlus,
+  BookOpen,
 } from 'lucide-react';
 
 const AppContent: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, profile, isAuthenticated } = useAuth();
 
   const [healthData, setHealthData] = useState<HealthResponse | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('checking');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  // View States
+  const [activeView, setActiveView] = useState<'home' | 'lessons'>('home');
+  const [currentLessonId, setCurrentLessonId] = useState<string | null>(null);
+  const [lessonBreadcrumbs, setLessonBreadcrumbs] = useState<BreadcrumbItem[]>([]);
 
   // Modal and Onboarding View States
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -70,6 +78,23 @@ const AppContent: React.FC = () => {
     setIsAuthModalOpen(true);
   };
 
+  const handleOpenLessons = () => {
+    setActiveView('lessons');
+    setCurrentLessonId(null);
+    setIsOnboardingOpen(false);
+  };
+
+  const handleOpenHome = () => {
+    setActiveView('home');
+    setCurrentLessonId(null);
+    setIsOnboardingOpen(false);
+  };
+
+  const handleSelectLesson = (lessonId: string, breadcrumbs: BreadcrumbItem[]) => {
+    setCurrentLessonId(lessonId);
+    setLessonBreadcrumbs(breadcrumbs);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
       <Header
@@ -80,6 +105,8 @@ const AppContent: React.FC = () => {
         isRefreshing={isRefreshing}
         onOpenAuth={handleOpenAuth}
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
+        onOpenLessons={handleOpenLessons}
+        onOpenHome={handleOpenHome}
       />
 
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
@@ -113,8 +140,32 @@ const AppContent: React.FC = () => {
           </div>
         )}
 
-        {/* VIEW A: Authenticated Student Area */}
-        {isAuthenticated && user ? (
+        {/* 1. If viewing a specific lesson, show LessonViewer */}
+        {currentLessonId ? (
+          <LessonViewer
+            lessonId={currentLessonId}
+            onBack={() => setCurrentLessonId(null)}
+            breadcrumbs={lessonBreadcrumbs}
+          />
+        ) : activeView === 'lessons' ? (
+          /* 2. If browsing lessons, show CurriculumBrowser */
+          <div>
+            <div className="mb-4">
+              <button
+                onClick={handleOpenHome}
+                className="text-xs font-semibold text-slate-500 hover:text-brand-600 flex items-center space-x-1"
+              >
+                <span>← Back to {isAuthenticated ? 'Dashboard' : 'Home'}</span>
+              </button>
+            </div>
+            <CurriculumBrowser
+              onSelectLesson={handleSelectLesson}
+              initialBoardCode={profile?.target_curriculum_code || undefined}
+              initialGradeCode={profile?.grade_stage_code || undefined}
+            />
+          </div>
+        ) : isAuthenticated && user ? (
+          /* 3. Authenticated Student Dashboard */
           <div>
             {isOnboardingOpen ? (
               <OnboardingWizard
@@ -122,18 +173,21 @@ const AppContent: React.FC = () => {
                 onCancel={() => setIsOnboardingOpen(false)}
               />
             ) : (
-              <StudentDashboard onOpenOnboarding={() => setIsOnboardingOpen(true)} />
+              <StudentDashboard
+                onOpenOnboarding={() => setIsOnboardingOpen(true)}
+                onOpenLessons={handleOpenLessons}
+              />
             )}
           </div>
         ) : (
-          /* VIEW B: Public Guest / Signed-Out Experience */
+          /* 4. Guest Home Experience */
           <div className="space-y-8">
             {/* Hero Banner */}
             <div className="bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 rounded-2xl p-6 sm:p-10 text-white shadow-xl border border-slate-800">
               <div className="max-w-3xl">
                 <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-brand-500/20 text-brand-300 border border-brand-500/30 mb-4">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Secure Authentication & Academic Onboarding Active</span>
+                  <span>Verified Curriculum Content & Mathematical Formatting Active</span>
                 </div>
                 <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight">
                   Master High School & Entrance Exam Curricula
@@ -152,6 +206,14 @@ const AppContent: React.FC = () => {
                     <UserPlus className="w-4 h-4" />
                     <span>Create Student Account</span>
                     <ArrowRight className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={handleOpenLessons}
+                    className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3 rounded-xl font-bold text-sm bg-white/10 hover:bg-white/15 text-white border border-white/20 transition-all"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>Browse Structured Lessons</span>
                   </button>
 
                   <button
@@ -194,42 +256,42 @@ const AppContent: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Mathematical Typesetting Engine */}
+            <div>
+              <div className="mb-3">
+                <h2 className="text-base font-bold text-slate-900">Verified Mathematical Typesetting Engine</h2>
+                <p className="text-xs text-slate-600">
+                  Zero-latency client-side rendering via KaTeX ensuring crystal-clear formulas across all viewports:
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <MathSnippet
+                  label="Electrostatics"
+                  context="CBSE 12 / JEE Physics"
+                  formula="\vec{F} = \frac{1}{4\pi\varepsilon_0} \frac{q_1 q_2}{r^2} \hat{r}"
+                />
+                <MathSnippet
+                  label="Special Relativity"
+                  context="Modern Physics"
+                  formula="E = \sqrt{(pc)^2 + (m_0 c^2)^2}"
+                />
+                <MathSnippet
+                  label="Calculus"
+                  context="JEE Mathematics"
+                  formula="\int_{-\infty}^{\infty} e^{-x^2} \, dx = \sqrt{\pi}"
+                />
+              </div>
+            </div>
+
+            {/* Foundational Curriculum Taxonomy */}
+            <CurriculumFoundation />
+
+            {/* Implementation Roadmap */}
+            <MilestoneRoadmap />
           </div>
         )}
-
-        {/* Mathematical Typesetting Engine */}
-        <div>
-          <div className="mb-3">
-            <h2 className="text-base font-bold text-slate-900">Verified Mathematical Typesetting Engine</h2>
-            <p className="text-xs text-slate-600">
-              Zero-latency client-side rendering via KaTeX ensuring crystal-clear formulas across all viewports:
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <MathSnippet
-              label="Electrostatics"
-              context="CBSE 12 / JEE Physics"
-              formula="\vec{F} = \frac{1}{4\pi\varepsilon_0} \frac{q_1 q_2}{r^2} \hat{r}"
-            />
-            <MathSnippet
-              label="Special Relativity"
-              context="Modern Physics"
-              formula="E = \sqrt{(pc)^2 + (m_0 c^2)^2}"
-            />
-            <MathSnippet
-              label="Calculus"
-              context="JEE Mathematics"
-              formula="\int_{-\infty}^{\infty} e^{-x^2} \, dx = \sqrt{\pi}"
-            />
-          </div>
-        </div>
-
-        {/* Foundational Curriculum Taxonomy */}
-        <CurriculumFoundation />
-
-        {/* Implementation Roadmap */}
-        <MilestoneRoadmap />
       </main>
 
       <Footer />

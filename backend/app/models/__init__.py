@@ -8,6 +8,12 @@ from app.models.identity import (
     User,
     UserRole,
 )
+from app.models.content import (
+    ContentStatus,
+    Lesson,
+    LessonSection,
+    SectionType,
+)
 from app.models.taxonomy import (
     BoardCurriculum,
     Chapter,
@@ -29,4 +35,8 @@ __all__ = [
     "Subject",
     "Chapter",
     "Topic",
+    "Lesson",
+    "LessonSection",
+    "ContentStatus",
+    "SectionType",
 ]

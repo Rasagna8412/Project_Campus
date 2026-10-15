@@ -1,11 +1,14 @@
 """Academic Curriculum Taxonomy Models."""
 
 import uuid
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.content import Lesson
 
 
 class BoardCurriculum(Base, TimestampMixin):
@@ -171,4 +174,10 @@ class Topic(Base, TimestampMixin):
     # Relationships
     chapter: Mapped["Chapter"] = relationship(
         "Chapter", back_populates="topics"
+    )
+    lessons: Mapped[List["Lesson"]] = relationship(
+        "Lesson",
+        back_populates="topic",
+        cascade="all, delete-orphan",
+        order_by="Lesson.display_order",
     )

@@ -115,7 +115,11 @@ python scripts/run_backend.py
   * `POST /api/v1/auth/login` — Login with rate-limiting, JWT response & HttpOnly cookie
   * `POST /api/v1/auth/logout` — Session termination
   * `GET /api/v1/auth/me` — Authenticated student identity
-  * `GET /api/v1/curricula` — Board, grade & subject taxonomy for onboarding
+  * `GET /api/v1/curricula/` — Board, grade & subject taxonomy for onboarding
+  * `GET /api/v1/curricula/subjects/{subject_id}/chapters` — Subject chapters and nested topics with published counts
+  * `GET /api/v1/curricula/chapters/{chapter_id}/topics` — Topics under chapter with lesson counts
+  * `GET /api/v1/curricula/topics/{topic_id}/lessons` — Topic published lessons strictly excluding drafts
+  * `GET /api/v1/curricula/lessons/{lesson_id}` — Full lesson detail and ordered sections (404 for unapproved)
   * `GET /api/v1/student/profile` — Fetch current student's academic profile
   * `POST /api/v1/student/onboarding` — Multi-step academic onboarding submission
   * `PUT /api/v1/student/profile` — Update study goals & language preference
@@ -136,23 +140,17 @@ npm run build
 
 ## Running Automated Tests
 
-### Backend Tests (Pytest - 24 Tests)
+### Backend Tests (Pytest - 47 Tests)
 ```bash
 # Run all backend unit & integration tests
 $env:PYTHONPATH="backend"
-.\.venv\Scripts\pytest.exe -v tests
+.\.venv\Scripts\pytest.exe -v
 ```
 
-### Frontend Tests (Vitest - 10 Tests across 3 Suites)
+### Frontend Tests (Vitest - 19 Tests across 6 Suites)
 ```bash
 cd frontend
-npm test -- --run
-```
-
-### Comprehensive Milestone 2 Verification Runner
-```bash
-$env:PYTHONPATH="backend"
-python scripts/verify_milestone_2.py
+npm test
 ```
 
 ---
@@ -161,16 +159,10 @@ python scripts/verify_milestone_2.py
 
 * **Milestone 0:** Discovery, Product Planning, and Architecture Specification — **COMPLETE**
 * **Milestone 1:** Development Environment, Core Scaffolding, and Database Schema — **COMPLETE**
-  * FastAPI application scaffolding with genuine `/health` checks.
-  * React 18 + TypeScript + Vite frontend with live API connectivity indicator & KaTeX math rendering.
-  * SQLAlchemy 2.0 models for academic taxonomy (`boards_curricula`, `grades_stages`, `subjects`, `chapters`, `topics`) and identity foundation (`users`, `roles`, `user_roles`, `student_profiles`).
-  * Alembic initial async migration applied cleanly.
-  * 10/10 backend tests passing; 4/4 frontend tests passing; production compilation verified.
 * **Milestone 2:** Secure Authentication, Authorization, and Academic Profile Management — **COMPLETE**
-  * **Backend Security:** Password hashing via bcrypt with salt; stateless JWT issuance and verification; in-memory sliding-window rate limiter protecting login and registration against brute-force attacks; role-aware authorization (`STUDENT`, `EDUCATOR`, `REVIEWER`, `ADMIN`).
-  * **Strict Data Isolation (IDOR Defense):** All student profile and onboarding queries derive identity solely from authenticated JWT claims (`current_user.id`), rejecting spoofed client parameters.
-  * **Relational Schema Migration:** Alembic migration `eeac6986a79e` adding `onboarding_completed` flag and `student_profile_subjects` join table.
-  * **Academic Onboarding Workflow:** Multi-step wizard supporting curriculum selection (CBSE, JEE Main, NEET), grade stage, subject selection with validation, and daily study goal configuration.
-  * **Privacy Compliance (DPDP Act 2023):** `DELETE /api/v1/student/account` self-service endpoint cleanly cascading removal of student profile, subject links, and user account.
-  * **Frontend Experience:** Modal authentication with instant switching between Sign In and Register; animated multi-step onboarding wizard; responsive student workspace displaying active board, grade, target exam year, subject badges, and interactive goal slider.
-  * **Automated Verification:** 24/24 backend tests passing; 10/10 frontend tests passing; production build verified with zero TypeScript errors.
+* **Milestone 3:** Curriculum Content Foundation and Structured Lesson Viewer — **COMPLETE**
+  * **Relational Schema Migration:** Alembic migration `ac0e5ff2e448` adding `lessons` and `lesson_sections` tables with cascading foreign keys and unique constraints (11 tables active).
+  * **Verified Academic Content:** CBSE Class 12 Physics, Chemistry, and Mathematics chapters, topics, learning objectives, and published lessons seeded with KaTeX formulas and worked examples.
+  * **Editorial Publication Safeguards:** Strict `PUBLISHED` status filtering on student endpoints; `DRAFT` and `IN_REVIEW` lessons return 404, preventing unauthorized leakage of unverified educational content.
+  * **Structured Lesson Viewer & Curriculum Browser:** Full hierarchy navigation (Curriculum -> Grade -> Subject -> Chapter -> Topic -> Lesson), breadcrumb navigation, and distinct pedagogical section rendering for `CONCEPT`, `KEY_FORMULA`, `WORKED_EXAMPLE`, and `NOTE`.
+  * **Automated Verification:** 47/47 backend tests passing; 19/19 frontend tests passing; production compilation verified with zero TypeScript errors.

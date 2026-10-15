@@ -172,3 +172,7 @@ async def seed_initial_data(session: AsyncSession) -> None:
 
     await session.commit()
     logger.info("Foundational database seed completed successfully.")
+
+    # 3. Seed Milestone 3 Academic Content (Chapters, Topics, Lessons, Sections)
+    from app.core.seed_lessons import seed_academic_content
+    await seed_academic_content(session)

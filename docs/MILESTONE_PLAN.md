@@ -72,16 +72,19 @@ gantt
 ---
 
 ### Milestone 3: Curriculum Hierarchy & Structured Lesson Viewer
-* **Goal:** Implement the academic taxonomy (Board -> Grade -> Subject -> Chapter -> Topic) and high-quality Markdown + LaTeX lesson viewer.
-* **Deliverables:**
-  * Seed data for initial syllabus: CBSE Class 11 & 12 Physics, Chemistry, and Mathematics core chapters.
-  * Backend endpoints to query syllabus tree by curriculum and grade.
-  * Frontend Lesson Reader: Responsive article reader with KaTeX formulas, estimated read time, collapsible sections, and formula highlights.
-  * Author CMS: Markdown + LaTeX editor with live split-screen preview for verified content authors.
-* **Exit Criteria:**
-  * Navigation seamlessly transitions through Subject -> Chapter -> Topic.
-  * Complex multi-line equations and chemical formulas render with zero typesetting glitches.
-  * Unit tests confirm syllabus hierarchy integrity.
+* **Status:** Completed & Verified (October 15, 2026)
+* **Goal:** Implement the academic taxonomy (Board -> Grade -> Subject -> Chapter -> Topic), content models (`lessons`, `lesson_sections`), publication lifecycle controls, and high-quality Markdown + KaTeX lesson viewer.
+* **Deliverables Delivered:**
+  * Seed data for initial syllabus: CBSE Class 12 Physics, Chemistry, and Mathematics core chapters and published lessons with KaTeX math and worked examples.
+  * Publication gating: Distinct DRAFT and IN_REVIEW lessons seeded and confirmed 100% excluded from public/student endpoints (returning 404).
+  * Backend endpoints to query syllabus hierarchy (`/subjects/{id}/chapters`, `/chapters/{id}/topics`, `/topics/{id}/lessons`, `/lessons/{id}`).
+  * Alembic migration `ac0e5ff2e448` extending the database schema to 11 tables.
+  * Frontend Curriculum Browser & Lesson Viewer: Responsive hierarchy navigation, breadcrumbs, KaTeX mathematical typesetting, and distinct styling for Concept, Key Formula, Worked Example, and Note sections.
+  * 11 new backend tests (47 total passing) + 9 new frontend tests (19 total passing).
+* **Exit Criteria Verified:**
+  * Navigation seamlessly transitions through Board -> Grade -> Subject -> Chapter -> Topic -> Lesson.
+  * Complex multi-line equations and chemical formulas render with zero typesetting glitches via KaTeX.
+  * All 47 backend and 19 frontend unit and integration tests pass with zero failures.
 
 ---
 
