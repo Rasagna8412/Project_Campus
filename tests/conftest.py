@@ -49,6 +49,16 @@ def event_loop():
     loop.close()
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiter_state():
+    """Ensure rate limiter state does not bleed across independent tests."""
+    from app.core.security import auth_rate_limiter
+
+    auth_rate_limiter._attempts.clear()
+    yield
+    auth_rate_limiter._attempts.clear()
+
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_test_database():
     """Initialize isolated test database tables before tests and cleanup afterward."""

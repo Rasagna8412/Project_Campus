@@ -81,12 +81,12 @@ async def register_student(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many registration attempts. Please wait before trying again.",
         )
+    auth_rate_limiter.record_attempt(rate_limit_id)
 
     # Check for existing normalized email
     stmt = select(User).where(User.email == payload.email)
     existing_user = (await db.execute(stmt)).scalar_one_or_none()
     if existing_user:
-        auth_rate_limiter.record_attempt(rate_limit_id)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="An account with this email address already exists.",
@@ -146,8 +146,6 @@ async def register_student(
     }
     access_token = create_access_token(token_claims)
     _set_auth_cookie(response, access_token)
-
-    auth_rate_limiter.reset(rate_limit_id)
 
     return TokenResponse(
         access_token=access_token,

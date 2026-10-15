@@ -176,3 +176,198 @@ async def test_logout_endpoint(client: AsyncClient):
     res = await client.post("/api/v1/auth/logout")
     assert res.status_code == 200
     assert res.json()["status"] == "success"
+    # Verify Set-Cookie header contains instructions to clear the auth cookie
+    set_cookie = res.headers.get("set-cookie", "")
+    assert "campus_access_token=" in set_cookie
+    assert "max-age=0" in set_cookie.lower() or "expires=" in set_cookie.lower()
+
+
+@pytest.mark.asyncio
+async def test_expired_jwt_rejected(client: AsyncClient, db_session: AsyncSession):
+    """Verify that an expired JWT is rejected with 401 Unauthorized."""
+    from datetime import timedelta
+    from app.core.security import create_access_token
+
+    email = f"expired_{uuid.uuid4().hex[:8]}@example.com"
+    reg_res = await client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "Password12345", "full_name": "Expired Test"},
+    )
+    user_id = reg_res.json()["user"]["id"]
+
+    # Create expired token (10 minutes in the past)
+    expired_token = create_access_token(
+        {"sub": str(user_id), "email": email, "roles": ["STUDENT"]},
+        expires_delta=timedelta(minutes=-10),
+    )
+
+    res = await client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {expired_token}"},
+    )
+    assert res.status_code == 401
+    assert "could not validate credentials" in res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_tampered_jwt_rejected(client: AsyncClient):
+    """Verify that a tampered JWT or invalid signature is rejected with 401."""
+    import jwt
+
+    email = f"tamper_{uuid.uuid4().hex[:8]}@example.com"
+    reg_res = await client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "Password12345", "full_name": "Tamper Test"},
+    )
+    valid_token = reg_res.json()["access_token"]
+
+    # Tamper with the token signature
+    parts = valid_token.split(".")
+    tampered_token = f"{parts[0]}.{parts[1]}.tampered_signature_value"
+
+    res = await client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {tampered_token}"},
+    )
+    assert res.status_code == 401
+
+    # Token signed with completely different secret key
+    fake_token = jwt.encode(
+        {"sub": str(uuid.uuid4()), "email": email, "roles": ["STUDENT"]},
+        "wrong-unauthorized-secret-key-1234567890",
+        algorithm="HS256",
+    )
+    res_fake = await client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {fake_token}"},
+    )
+    assert res_fake.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_inactive_user_login_rejected(client: AsyncClient, db_session: AsyncSession):
+    """Verify that an inactive/deactivated user account cannot log in."""
+    email = f"inactive_login_{uuid.uuid4().hex[:8]}@example.com"
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "Password12345", "full_name": "Inactive User"},
+    )
+
+    # Deactivate account in database
+    stmt = select(User).where(User.email == email.lower())
+    user = (await db_session.execute(stmt)).scalar_one()
+    user.is_active = False
+    await db_session.commit()
+
+    # Attempt login
+    res = await client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": "Password12345"},
+    )
+    assert res.status_code == 403
+    assert "deactivated" in res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_inactive_user_token_access_rejected(client: AsyncClient, db_session: AsyncSession):
+    """Verify that a token belonging to a deactivated user is rejected on protected routes."""
+    email = f"inactive_token_{uuid.uuid4().hex[:8]}@example.com"
+    reg_res = await client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "Password12345", "full_name": "Active Then Inactive"},
+    )
+    token = reg_res.json()["access_token"]
+    user_id = reg_res.json()["user"]["id"]
+
+    # Verify active access works
+    auth_res = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert auth_res.status_code == 200
+
+    # Deactivate user in database
+    stmt = select(User).where(User.id == uuid.UUID(user_id))
+    user = (await db_session.execute(stmt)).scalar_one()
+    user.is_active = False
+    await db_session.commit()
+
+    # Subsequent access with same token must be rejected with 403 Forbidden
+    blocked_res = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert blocked_res.status_code == 403
+    assert "inactive" in blocked_res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_logout_cookie_clearing_and_token_reuse(client: AsyncClient):
+    """Verify logout clears cookie, but verify that stateless bearer token remains valid until expiry."""
+    email = f"reuse_{uuid.uuid4().hex[:8]}@example.com"
+    reg_res = await client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "Password12345", "full_name": "Reuse Tester"},
+    )
+    token = reg_res.json()["access_token"]
+
+    # Call logout
+    logout_res = await client.post("/api/v1/auth/logout")
+    assert logout_res.status_code == 200
+
+    # Cookie was instructed to clear
+    set_cookie = logout_res.headers.get("set-cookie", "")
+    assert "campus_access_token=" in set_cookie
+
+    # Stateless JWT: The bearer token itself still passes signature verification
+    # This documents the current architectural behavior: without a server-side denylist,
+    # the client-side token discard is the primary revocation mechanism in development.
+    reuse_res = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert reuse_res.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_registration_rate_limiting(client: AsyncClient):
+    """Verify that exceeding maximum registration attempts from an IP triggers 429 Too Many Requests."""
+    for i in range(5):
+        unique_email = f"spam_reg_{i}_{uuid.uuid4().hex[:6]}@example.com"
+        res = await client.post(
+            "/api/v1/auth/register",
+            json={"email": unique_email, "password": "Password12345", "full_name": f"Spam {i}"},
+        )
+        assert res.status_code == 201
+
+    # 6th attempt must be blocked by rate limiter
+    blocked_res = await client.post(
+        "/api/v1/auth/register",
+        json={"email": f"blocked_{uuid.uuid4().hex[:6]}@example.com", "password": "Password12345", "full_name": "Blocked"},
+    )
+    assert blocked_res.status_code == 429
+    assert "too many registration attempts" in blocked_res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_login_rate_limiting(client: AsyncClient):
+    """Verify that repeated failed logins for the same account/IP trigger 429 Too Many Requests."""
+    target_email = f"target_{uuid.uuid4().hex[:8]}@example.com"
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": target_email, "password": "CorrectPassword1", "full_name": "Target User"},
+    )
+
+    # 5 failed login attempts
+    for _ in range(5):
+        res = await client.post(
+            "/api/v1/auth/login",
+            json={"email": target_email, "password": "WrongPasswordX"},
+        )
+        assert res.status_code == 401
+
+    # 6th attempt triggers 429 Too Many Requests
+    blocked_res = await client.post(
+        "/api/v1/auth/login",
+        json={"email": target_email, "password": "WrongPasswordX"},
+    )
+    assert blocked_res.status_code == 429
+    assert "too many failed login attempts" in blocked_res.json()["detail"].lower()
+

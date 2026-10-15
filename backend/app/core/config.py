@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 from typing import List, Union
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -50,6 +50,22 @@ class Settings(BaseSettings):
         elif isinstance(v, str) and v.startswith("["):
             return json.loads(v)
         return v
+
+    @model_validator(mode="after")
+    def validate_production_settings(self) -> "Settings":
+        """Prevent silent deployment with insecure defaults in production."""
+        if self.ENVIRONMENT.lower() == "production":
+            if (
+                not self.SECRET_KEY
+                or "dev-insecure" in self.SECRET_KEY
+                or len(self.SECRET_KEY) < 32
+            ):
+                raise ValueError(
+                    "Production environment requires a high-entropy SECRET_KEY (minimum 32 characters, no default dev keys)."
+                )
+            if not self.AUTH_COOKIE_SECURE:
+                object.__setattr__(self, "AUTH_COOKIE_SECURE", True)
+        return self
 
     model_config = SettingsConfigDict(
         env_file=".env",

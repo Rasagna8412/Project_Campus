@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_role
 from app.core.database import get_db
 from app.models.identity import StudentProfile, StudentProfileSubject, User
 from app.models.taxonomy import BoardCurriculum, GradeStage, Subject
@@ -81,7 +81,7 @@ async def _format_profile_response(
     summary="Get Authenticated Student Profile",
 )
 async def get_student_profile(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role("STUDENT")),
     db: AsyncSession = Depends(get_db),
 ) -> StudentProfileResponse:
     """Retrieve the authenticated student's isolated profile."""
@@ -116,7 +116,7 @@ async def get_student_profile(
 )
 async def submit_student_onboarding(
     payload: StudentOnboardingRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role("STUDENT")),
     db: AsyncSession = Depends(get_db),
 ) -> StudentProfileResponse:
     """Save curriculum selections, enrolled subjects, and study preferences."""
@@ -204,7 +204,7 @@ async def submit_student_onboarding(
 )
 async def update_student_profile(
     payload: StudentProfileUpdateRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role("STUDENT")),
     db: AsyncSession = Depends(get_db),
 ) -> StudentProfileResponse:
     """Update study goals and language preferences."""
@@ -236,7 +236,7 @@ async def update_student_profile(
     summary="Delete Student Account (DPDP Act Compliance)",
 )
 async def delete_student_account(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role("STUDENT")),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Permanently erase the authenticated student's account and profile."""

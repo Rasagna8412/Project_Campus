@@ -38,3 +38,31 @@ async def test_internal_error_does_not_leak_stack_trace_or_secrets():
         assert "SECRET_KEY_12345" not in response.text
         assert "Traceback" not in response.text
         assert "RuntimeError" not in response.text
+
+
+def test_production_secret_key_validation():
+    """Verify that development secrets are blocked when ENVIRONMENT=production."""
+    from app.core.config import Settings
+
+    # 1. Default dev key in production raises ValueError
+    with pytest.raises(ValueError, match="Production environment requires a high-entropy SECRET_KEY"):
+        Settings(
+            ENVIRONMENT="production",
+            SECRET_KEY="dev-insecure-secret-key-change-in-production-campus-2026-xyz",
+        )
+
+    # 2. Too short secret key raises ValueError
+    with pytest.raises(ValueError, match="Production environment requires a high-entropy SECRET_KEY"):
+        Settings(
+            ENVIRONMENT="production",
+            SECRET_KEY="short_key_123",
+        )
+
+    # 3. High-entropy key succeeds and automatically enforces secure cookies
+    prod_settings = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY="high-entropy-production-secret-key-2026-minimum-32-chars",
+        AUTH_COOKIE_SECURE=False,  # Should be forced to True
+    )
+    assert prod_settings.AUTH_COOKIE_SECURE is True
+
