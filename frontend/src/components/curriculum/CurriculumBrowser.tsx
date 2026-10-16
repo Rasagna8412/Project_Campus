@@ -13,7 +13,12 @@ import {
   PenTool,
   Sparkles,
 } from 'lucide-react';
-import { getCurricula, getSubjectChapters, getTopicLessons } from '../../services/api';
+import {
+  getCurricula,
+  getStudentLessonProgress,
+  getSubjectChapters,
+  getTopicLessons,
+} from '../../services/api';
 import { CurriculumBoard, GradeStageItem, SubjectItem } from '../../types/auth';
 import { Chapter, LessonSummary } from '../../types/content';
 import { BreadcrumbItem } from './LessonViewer';
@@ -47,8 +52,35 @@ export const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({
   const [loadingTopicId, setLoadingTopicId] = useState<string | null>(null);
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
 
+  // Lesson progress tracking map (lessonId -> status)
+  const [progressMap, setProgressMap] = useState<Record<string, string>>({});
+
   // Error state
   const [error, setError] = useState<string | null>(null);
+
+  // Load lesson progress for authenticated student
+  useEffect(() => {
+    let mounted = true;
+    if (getStudentLessonProgress) {
+      Promise.resolve(getStudentLessonProgress())
+        .then((records) => {
+          if (mounted && Array.isArray(records)) {
+            const map: Record<string, string> = {};
+            records.forEach((r) => {
+              map[r.lesson_id] = r.status;
+            });
+            setProgressMap(map);
+          }
+        })
+        .catch(() => {
+          // Unauthenticated guest browsing, map remains empty
+        });
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Load curricula boards on mount
   useEffect(() => {
@@ -466,6 +498,21 @@ export const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({
                             <Clock className="w-3 h-3" />
                             <span>{lesson.estimated_read_time_minutes} min</span>
                           </span>
+                          {progressMap[lesson.id] === 'COMPLETED' ? (
+                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>Completed</span>
+                            </span>
+                          ) : progressMap[lesson.id] === 'IN_PROGRESS' ? (
+                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              <span>In Progress</span>
+                            </span>
+                          ) : Object.keys(progressMap).length > 0 ? (
+                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs font-medium text-slate-500 bg-slate-100">
+                              <span>Not Started</span>
+                            </span>
+                          ) : null}
                         </div>
 
                         <h4 className="font-bold text-slate-900 text-base mb-1.5 leading-snug">

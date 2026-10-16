@@ -239,8 +239,13 @@ async def delete_student_account(
     current_user: User = Depends(require_role("STUDENT")),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Permanently erase the authenticated student's account and profile."""
-    # Cascading foreign keys will remove profile and user_roles
+    # Explicitly cleanse child records for dual-dialect SQLite and PostgreSQL consistency
+    from app.models.assessment import PracticeSession, QuestionAttempt
+    from app.models.content import LessonProgress
+
+    await db.execute(delete(LessonProgress).where(LessonProgress.user_id == current_user.id))
+    await db.execute(delete(QuestionAttempt).where(QuestionAttempt.user_id == current_user.id))
+    await db.execute(delete(PracticeSession).where(PracticeSession.user_id == current_user.id))
     await db.delete(current_user)
     await db.commit()
     return {

@@ -1,14 +1,16 @@
-"""Structured Academic Lesson and Content Section Models."""
-
 import enum
 import uuid
+from datetime import datetime, timezone
 from typing import List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.assessment import Question
+    from app.models.identity import User
 from sqlalchemy import (
     Boolean,
+    DateTime,
     ForeignKey,
+    Index,
     Integer,
     JSON,
     String,
@@ -97,6 +99,11 @@ class Lesson(Base, TimestampMixin):
         "Question",
         back_populates="lesson",
     )
+    progress_records: Mapped[List["LessonProgress"]] = relationship(
+        "LessonProgress",
+        back_populates="lesson",
+        cascade="all, delete-orphan",
+    )
 
 
 class LessonSection(Base, TimestampMixin):
@@ -132,4 +139,61 @@ class LessonSection(Base, TimestampMixin):
     # Relationships
     lesson: Mapped["Lesson"] = relationship(
         "Lesson", back_populates="sections"
+    )
+
+
+class LessonProgressStatus(str, enum.Enum):
+    """Lifecycle progress state of a student on a structured lesson."""
+
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+
+
+class LessonProgress(Base, TimestampMixin):
+    """Persistent tracking of a student's reading and completion status for a lesson."""
+
+    __tablename__ = "lesson_progress"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    lesson_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("lessons.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), default=LessonProgressStatus.IN_PROGRESS.value, nullable=False
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    completed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_accessed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "lesson_id", name="uq_user_lesson_progress"),
+        Index("idx_lesson_progress_user_status", "user_id", "status"),
+        Index("idx_lesson_progress_user_accessed", "user_id", "last_accessed_at"),
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+    lesson: Mapped["Lesson"] = relationship(
+        "Lesson", back_populates="progress_records"
     )

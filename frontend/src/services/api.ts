@@ -22,6 +22,12 @@ import {
   StudentQuestion,
   SubmitAnswerPayload,
 } from '../types/assessment';
+import {
+  DashboardAnalytics,
+  LearningRecommendation,
+  LessonProgress,
+  TopicPerformance,
+} from '../types/progress';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const TOKEN_STORAGE_KEY = 'campus_auth_token';
@@ -305,4 +311,53 @@ export async function getPracticeHistory(
     { method: 'GET' }
   );
 }
+
+/**
+ * Lesson Progress Tracking
+ */
+export async function getStudentLessonProgress(): Promise<LessonProgress[]> {
+  return await apiRequest<LessonProgress[]>('/api/v1/student/progress/lessons', {
+    method: 'GET',
+  });
+}
+
+export async function getLessonProgress(lessonId: string): Promise<LessonProgress> {
+  return await apiRequest<LessonProgress>(`/api/v1/student/progress/lessons/${lessonId}`, {
+    method: 'GET',
+  });
+}
+
+export async function startLessonProgress(lessonId: string): Promise<LessonProgress> {
+  return await apiRequest<LessonProgress>(`/api/v1/student/progress/lessons/${lessonId}/start`, {
+    method: 'POST',
+  });
+}
+
+export async function completeLessonProgress(lessonId: string): Promise<LessonProgress> {
+  return await apiRequest<LessonProgress>(`/api/v1/student/progress/lessons/${lessonId}/complete`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Learning Analytics & Diagnostic Recommendations
+ */
+export async function getDashboardAnalytics(): Promise<DashboardAnalytics> {
+  return await apiRequest<DashboardAnalytics>('/api/v1/student/analytics/dashboard', {
+    method: 'GET',
+  });
+}
+
+export async function getTopicAnalytics(): Promise<TopicPerformance[]> {
+  return await apiRequest<TopicPerformance[]>('/api/v1/student/analytics/topics', {
+    method: 'GET',
+  });
+}
+
+export async function getLearningRecommendations(): Promise<LearningRecommendation[]> {
+  return await apiRequest<LearningRecommendation[]>('/api/v1/student/analytics/recommendations', {
+    method: 'GET',
+  });
+}
+
 

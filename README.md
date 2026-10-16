@@ -130,6 +130,12 @@ python scripts/run_backend.py
   * `POST /api/v1/student/onboarding` — Multi-step academic onboarding submission
   * `PUT /api/v1/student/profile` — Update study goals & language preference
   * `DELETE /api/v1/student/account` — DPDP Act 2023 compliant account & profile erasure
+  * `GET /api/v1/student/progress/lessons` — List student lesson reading progress
+  * `POST /api/v1/student/progress/lessons/{id}/start` — Record idempotent lesson access start
+  * `POST /api/v1/student/progress/lessons/{id}/complete` — Mark lesson as completed
+  * `GET /api/v1/student/analytics/dashboard` — Aggregated KPI metrics, accuracy %, practice time & activity feed
+  * `GET /api/v1/student/analytics/topics` — Topic performance breakdown with deterministic mastery classification
+  * `GET /api/v1/student/analytics/recommendations` — Explainable prioritized next-step learning actions
 
 ### 2. Frontend Setup
 ```bash
@@ -146,14 +152,14 @@ npm run build
 
 ## Running Automated Tests
 
-### Backend Tests (Pytest - 61 Tests)
+### Backend Tests (Pytest - 78 Tests)
 ```bash
 # Run all backend unit & integration tests
 $env:PYTHONPATH="backend"
 .\.venv\Scripts\pytest.exe -v
 ```
 
-### Frontend Tests (Vitest - 24 Tests across 7 Suites)
+### Frontend Tests (Vitest - 27 Tests across 8 Suites)
 ```bash
 cd frontend
 npm test
@@ -168,9 +174,10 @@ npm test
 * **Milestone 2:** Secure Authentication, Authorization, and Academic Profile Management — **COMPLETE**
 * **Milestone 3:** Curriculum Content Foundation and Structured Lesson Viewer — **COMPLETE**
 * **Milestone 4:** Question Bank, Topic-Based Practice Engine, and Assessment Foundation — **COMPLETE**
-  * **Relational Assessment Schema:** Alembic migration `0cb437c7683c` adding `questions`, `question_options`, `question_answer_keys`, `practice_sessions`, `question_attempts`, and `question_errata_reports` tables (17 tables active).
-  * **Supported Question Formats:** Single-Choice (MCQ), Multiple-Choice (Multi-select), Numerical with decimal tolerance, and Integer responses.
-  * **Answer Key Security Invariant:** Questions queried by students strictly omit answer keys, correct option sets, and educator solutions. Solutions are revealed only upon atomic submission of an attempt.
-  * **Editorial Publication Isolation:** `DRAFT` and `IN_REVIEW` questions are 100% excluded from student endpoints (returning 404).
-  * **Interactive Practice UI & KaTeX Math:** `QuestionCard`, `PracticeModal` stepper, `ErrataModal` issue reporting, and dashboard practice history.
-  * **Automated Verification:** 61/61 backend tests passing; 24/24 frontend tests passing; production compilation verified with zero TypeScript errors.
+* **Milestone 5:** Student Progress Tracking & Learning Analytics — **COMPLETE**
+  * **Relational Progress Schema:** Alembic migration `be8ed8718838` adding `lesson_progress` table with unique constraint `(user_id, lesson_id)` (18 tables active).
+  * **Zero Cache Drift Metric Engine:** Aggregates total questions solved, correct attempts, overall accuracy, and estimated practice time dynamically from atomic records.
+  * **Deterministic Topic Mastery Classifier:** Categorizes topics into `INSUFFICIENT_DATA` (<5 Qs), `NEEDS_REVIEW` (>=5 Qs, <60%), `DEVELOPING` (>=5 Qs, 60-79.9%), and `STRONG` (>=5 Qs, >=80%).
+  * **Explainable Learning Recommendations:** Generates priority-ordered suggestions (`RESUME_LESSON` -> `REVISE_TOPIC` -> `PRACTICE_TOPIC` -> `NEXT_LESSON`).
+  * **Interactive Frontend Analytics & Progress UI:** 5-KPI header bar, topic performance matrix with status pills, recommendation action cards, activity feed, and lesson progress badges/completion toggles.
+  * **Automated Verification:** 78/78 backend Pytest tests passing; 27/27 frontend Vitest tests passing; production compilation verified with zero TypeScript errors.

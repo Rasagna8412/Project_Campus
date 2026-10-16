@@ -7,13 +7,19 @@ import {
   Clock,
   HelpCircle,
   Lightbulb,
+  Loader2,
   PenTool,
   ShieldCheck,
   Sigma,
   Target,
 } from 'lucide-react';
-import { getLessonDetail } from '../../services/api';
+import {
+  getLessonDetail,
+  startLessonProgress,
+  completeLessonProgress,
+} from '../../services/api';
 import { LessonDetail, LessonSection, SectionType } from '../../types/content';
+import { LessonProgress } from '../../types/progress';
 import { LessonContentRenderer } from './LessonContentRenderer';
 
 export interface BreadcrumbItem {
@@ -38,6 +44,11 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Lesson progress tracking state
+  const [progress, setProgress] = useState<LessonProgress | null>(null);
+  const [isCompleting, setIsCompleting] = useState<boolean>(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
+
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
@@ -48,6 +59,17 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
         if (isMounted) {
           setLesson(data);
           setLoading(false);
+
+          // Auto-record lesson access / start if authenticated
+          if (startLessonProgress) {
+            Promise.resolve(startLessonProgress(lessonId))
+              .then((prog) => {
+                if (isMounted && prog) setProgress(prog);
+              })
+              .catch(() => {
+                // Unauthenticated guests or offline mode gracefully ignored
+              });
+          }
         }
       })
       .catch((err: Error) => {
@@ -61,6 +83,23 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
       isMounted = false;
     };
   }, [lessonId]);
+
+  const handleCompleteLesson = async () => {
+    setIsCompleting(true);
+    setCompletionError(null);
+    try {
+      const updated = await completeLessonProgress(lessonId);
+      setProgress(updated);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setCompletionError(err.message);
+      } else {
+        setCompletionError('Failed to record lesson completion');
+      }
+    } finally {
+      setIsCompleting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -197,6 +236,17 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
             <Clock className="w-3.5 h-3.5 text-slate-500" />
             <span>{lesson.estimated_read_time_minutes} min read</span>
           </span>
+          {progress?.status === 'COMPLETED' ? (
+            <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Completed Lesson</span>
+            </span>
+          ) : progress?.status === 'IN_PROGRESS' ? (
+            <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+              <Clock className="w-3.5 h-3.5 text-amber-600" />
+              <span>In Progress</span>
+            </span>
+          ) : null}
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
@@ -285,6 +335,48 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
           </button>
         </section>
       )}
+
+      {/* Explicit Lesson Completion Action */}
+      <section
+        aria-label="Lesson Completion Status"
+        className="mt-8 p-5 sm:p-6 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4"
+      >
+        <div>
+          <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+            Lesson Study Completion
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {progress?.status === 'COMPLETED'
+              ? `You marked this lesson completed${progress.completed_at ? ' on ' + new Date(progress.completed_at).toLocaleDateString() : ''}. Well done!`
+              : 'Finished reviewing all concepts and examples? Mark this lesson complete to track your syllabus coverage.'}
+          </p>
+          {completionError && (
+            <p className="text-xs text-rose-600 mt-1 font-medium">{completionError}</p>
+          )}
+        </div>
+
+        <div>
+          {progress?.status === 'COMPLETED' ? (
+            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold shadow-sm">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Completed</span>
+            </div>
+          ) : (
+            <button
+              onClick={handleCompleteLesson}
+              disabled={isCompleting}
+              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-sm transition-all"
+            >
+              {isCompleting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              <span>Mark Lesson as Completed</span>
+            </button>
+          )}
+        </div>
+      </section>
 
       {/* Footer Navigation */}
       <footer className="mt-12 pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">

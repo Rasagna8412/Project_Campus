@@ -11,6 +11,8 @@ from app.models.identity import (
 from app.models.content import (
     ContentStatus,
     Lesson,
+    LessonProgress,
+    LessonProgressStatus,
     LessonSection,
     SectionType,
 )
@@ -47,6 +49,8 @@ __all__ = [
     "Chapter",
     "Topic",
     "Lesson",
+    "LessonProgress",
+    "LessonProgressStatus",
     "LessonSection",
     "ContentStatus",
     "SectionType",

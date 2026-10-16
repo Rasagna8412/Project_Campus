@@ -187,6 +187,9 @@ const AppContent: React.FC = () => {
               <StudentDashboard
                 onOpenOnboarding={() => setIsOnboardingOpen(true)}
                 onOpenLessons={handleOpenLessons}
+                onSelectLesson={(lessonId) =>
+                  handleSelectLesson(lessonId, [{ label: 'Curriculum' }])
+                }
                 onStartPractice={(topicId, title) =>
                   setActivePracticeTopic({ topicId, topicTitle: title })
                 }

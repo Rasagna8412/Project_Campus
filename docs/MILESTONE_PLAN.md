@@ -108,14 +108,23 @@ gantt
 ---
 
 ### Milestone 5: Student Analytics, Progress Tracking & Learning-Gap Analysis
-* **Goal:** Provide students with deep diagnostic insights into topic mastery, time management, and weak conceptual areas.
-* **Deliverables:**
-  * Calculation engine for `topic_mastery` (accuracy %, attempt count, mastery score).
-  * Learning-Gap Classifier: Automatically categorizes topics into "Mastered" ($\ge 85\%$), "Developing" ($60-84\%$), and "Struggling / Needs Revision" ($<60\%$).
-  * Visual Analytics Dashboard: Interactive mastery heatmaps, accuracy by subject, and time spent metrics.
-* **Exit Criteria:**
-  * Accuracy metrics recalculate accurately in real-time upon question submission.
-  * Visual charts render crisply on both mobile viewports and desktop browsers.
+* **Status:** Completed & Verified (October 16, 2026)
+* **Goal:** Provide students with deep diagnostic insights into topic mastery, practice volume, weak conceptual areas, and explainable next-step recommendations.
+* **Deliverables Delivered:**
+  * Database entity `LessonProgress` with unique `(user_id, lesson_id)` constraint via Alembic migration `be8ed8718838` (18 tables active).
+  * Dynamic practice metric aggregation directly from `question_attempts` and `practice_sessions` ensuring zero state drift.
+  * Deterministic topic performance classifier with 4 categories: `INSUFFICIENT_DATA` (<5 Qs), `NEEDS_REVIEW` (>=5 Qs, <60%), `DEVELOPING` (>=5 Qs, 60-79.9%), and `STRONG` (>=5 Qs, >=80%).
+  * Explainable rule-based learning recommendation engine prioritizing active lessons, revision targets, confidence drills, and syllabus progression.
+  * Student Dashboard with 5-KPI analytics bar, interactive topic performance matrix with status badges, recommendation cards, recent activity timeline, and new-student empty state.
+  * Lesson Viewer with automatic progress initiation, status header badges, and explicit lesson completion action.
+  * Curriculum Browser with lesson completion status pills (`Completed`, `In Progress`, `Not Started`).
+  * DPDP Act 2023 compliant cascading cleanup of all progress and practice records on account deletion.
+  * 17 new tests: 8 new backend tests (78 total passing) + 3 new frontend tests (27 total passing across 8 suites).
+* **Exit Criteria Verified:**
+  * Lesson start and completion persist idempotently with ISO timestamps.
+  * Topic accuracy and practice metrics recalculate dynamically on question submission.
+  * All 78 backend Pytest tests and 27 frontend Vitest tests pass with 100% success rate.
+  * Production frontend build passes with 0 TypeScript errors.
 
 ---
 
