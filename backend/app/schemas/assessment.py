@@ -55,8 +55,8 @@ class SubmitAnswerRequest(BaseModel):
     question_id: uuid.UUID
     session_id: Optional[uuid.UUID] = None
     selected_options: Optional[List[str]] = None
-    submitted_numerical: Optional[float] = None
-    submitted_integer: Optional[int] = None
+    submitted_numerical: Optional[float] = Field(default=None, allow_inf_nan=False)
+    submitted_integer: Optional[int] = Field(default=None, strict=True)
     time_spent_seconds: int = Field(default=0, ge=0)
 
 

@@ -2,7 +2,7 @@
 
 import enum
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy import (
     Boolean,
@@ -267,7 +267,9 @@ class QuestionAttempt(Base):
     submitted_integer: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     is_correct: Mapped[bool] = mapped_column(Boolean, nullable=False)
     time_spent_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    attempted_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    attempted_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(timezone.utc), nullable=False
+    )
 
     # Relationships
     session: Mapped[Optional["PracticeSession"]] = relationship(

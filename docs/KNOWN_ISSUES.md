@@ -78,3 +78,20 @@ Before proceeding to Milestone 1 implementation, the following key assumptions r
    * *Observation:* Student onboarding required persistent multi-subject relationships and explicit completion tracking.
    * *Resolution in Milestone 2:* Added `onboarding_completed` flag to `student_profiles` and created the `student_profile_subjects` association table via migration `eeac6986a79e`. Verified idempotent seeding and clean rollback capability.
 
+---
+
+## 5. Milestone 4 Audit Observations & Operational Status
+
+1. **Session Ownership & Duplicate Attempt Protection:**
+   * *Observation:* Cross-student session attempt injection and duplicate submission score inflation were identified during the Milestone 4 security audit.
+   * *Resolution:* Enforced session ownership checks returning `404 Not Found` for unauthorized session attempts, and rejected duplicate question submissions within the same session with `400 Bad Request`.
+
+2. **Numerical Tolerance Floating-Point Precision:**
+   * *Observation:* Exact boundary values for floating-point tolerance comparisons could fail due to standard IEEE 754 precision quirks (e.g. `abs(0.009 - 0.008) > 0.001`).
+   * *Resolution:* Added an epsilon buffer (`tol + 1e-9`) in `backend/app/api/v1/endpoints/practice.py` to prevent rounding false negatives on exact boundaries.
+
+3. **Non-Finite Float Sanitization in Validation Errors:**
+   * *Observation:* Submitting `NaN` or `Infinity` caused `JSONResponse` in Starlette to fail serializing Pydantic's `RequestValidationError` detail dicts with `ValueError: Out of range float values are not JSON compliant`, resulting in an unhandled 500 error.
+   * *Resolution:* Added a custom `RequestValidationError` handler in `backend/app/main.py` that recursively converts non-finite floats to strings, reliably returning a clean 422 HTTP response.
+
+

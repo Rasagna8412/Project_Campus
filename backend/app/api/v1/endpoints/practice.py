@@ -1,5 +1,6 @@
 """Assessment, Question Bank, Practice Engine, and Errata Endpoints."""
 
+import math
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -288,7 +289,10 @@ async def submit_answer(
             Question.id == payload.question_id,
             Question.status == ContentStatus.PUBLISHED.value,
         )
-        .options(selectinload(Question.answer_key))
+        .options(
+            selectinload(Question.answer_key),
+            selectinload(Question.options),
+        )
     )
     result = await db.execute(stmt)
     question = result.scalar_one_or_none()
@@ -298,6 +302,38 @@ async def submit_answer(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Question not found or not published",
         )
+
+    # Validate session if provided
+    session: Optional[PracticeSession] = None
+    if payload.session_id:
+        session = await db.get(PracticeSession, payload.session_id)
+        if not session or session.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Practice session not found",
+            )
+        if session.is_completed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Practice session is already completed",
+            )
+        if session.topic_id and question.topic_id != session.topic_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Question does not belong to this practice session topic",
+            )
+
+        # Prevent duplicate submissions for the same question within the session
+        dup_stmt = select(QuestionAttempt.id).where(
+            QuestionAttempt.session_id == session.id,
+            QuestionAttempt.question_id == question.id,
+        )
+        dup_res = await db.execute(dup_stmt)
+        if dup_res.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Question already submitted in this session",
+            )
 
     answer_key: Optional[QuestionAnswerKey] = question.answer_key
     if not answer_key:
@@ -310,25 +346,42 @@ async def submit_answer(
     is_correct = False
     q_type = question.question_type
 
-    if q_type == QuestionType.SINGLE_CHOICE.value:
-        if (
-            payload.selected_options
-            and len(payload.selected_options) == 1
-            and answer_key.correct_options
-        ):
-            is_correct = payload.selected_options[0] in answer_key.correct_options
+    if q_type in (QuestionType.SINGLE_CHOICE.value, QuestionType.MULTIPLE_CHOICE.value):
+        if payload.selected_options:
+            valid_keys = {opt.option_key for opt in question.options}
+            if not set(payload.selected_options).issubset(valid_keys):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Selected options do not belong to this question",
+                )
 
-    elif q_type == QuestionType.MULTIPLE_CHOICE.value:
-        if payload.selected_options and answer_key.correct_options:
-            is_correct = sorted(payload.selected_options) == sorted(answer_key.correct_options)
+        if q_type == QuestionType.SINGLE_CHOICE.value:
+            if (
+                payload.selected_options
+                and len(payload.selected_options) == 1
+                and answer_key.correct_options
+            ):
+                is_correct = payload.selected_options[0] in answer_key.correct_options
+
+        elif q_type == QuestionType.MULTIPLE_CHOICE.value:
+            if payload.selected_options and answer_key.correct_options:
+                is_correct = sorted(payload.selected_options) == sorted(answer_key.correct_options)
 
     elif q_type == QuestionType.NUMERICAL.value:
-        if (
-            payload.submitted_numerical is not None
-            and answer_key.numerical_value is not None
-        ):
-            tol = answer_key.numerical_tolerance if answer_key.numerical_tolerance is not None else 0.01
-            is_correct = abs(payload.submitted_numerical - answer_key.numerical_value) <= tol
+        if payload.submitted_numerical is not None:
+            if not math.isfinite(payload.submitted_numerical):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Submitted numerical value must be a finite number",
+                )
+            if answer_key.numerical_value is not None:
+                tol = (
+                    answer_key.numerical_tolerance
+                    if answer_key.numerical_tolerance is not None
+                    else 0.01
+                )
+                # Use tol + 1e-9 to avoid binary floating-point roundoff at exact boundary
+                is_correct = abs(payload.submitted_numerical - answer_key.numerical_value) <= (tol + 1e-9)
 
     elif q_type == QuestionType.INTEGER.value:
         if (
@@ -341,7 +394,7 @@ async def submit_answer(
 
     # 2. Record Attempt
     attempt = QuestionAttempt(
-        session_id=payload.session_id,
+        session_id=session.id if session else None,
         user_id=current_user.id,
         question_id=question.id,
         selected_options=payload.selected_options,
@@ -353,22 +406,20 @@ async def submit_answer(
     db.add(attempt)
 
     # 3. Update Session Progress if attached
-    if payload.session_id:
-        session = await db.get(PracticeSession, payload.session_id)
-        if session and session.user_id == current_user.id:
-            if is_correct:
-                session.correct_count += 1
+    if session:
+        if is_correct:
+            session.correct_count += 1
 
-            # Count total attempts in session
-            count_stmt = select(func.count(QuestionAttempt.id)).where(
-                QuestionAttempt.session_id == session.id
-            )
-            count_res = await db.execute(count_stmt)
-            attempt_count = (count_res.scalar() or 0) + 1  # include current attempt
+        # Count total attempts in session
+        count_stmt = select(func.count(QuestionAttempt.id)).where(
+            QuestionAttempt.session_id == session.id
+        )
+        count_res = await db.execute(count_stmt)
+        attempt_count = (count_res.scalar() or 0) + 1  # include current attempt
 
-            if attempt_count >= session.total_questions:
-                session.is_completed = True
-                session.completed_at = datetime.now(timezone.utc)
+        if attempt_count >= session.total_questions:
+            session.is_completed = True
+            session.completed_at = datetime.now(timezone.utc)
 
     await db.commit()
 

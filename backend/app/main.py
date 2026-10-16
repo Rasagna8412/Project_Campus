@@ -2,9 +2,12 @@
 
 from contextlib import asynccontextmanager
 import logging
-from typing import AsyncGenerator
+import math
+from typing import Any, AsyncGenerator
 
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -56,6 +59,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _sanitize_for_json(obj: Any) -> Any:
+    """Recursively convert non-JSON-compliant values (e.g. NaN, Infinity) to string representations."""
+    if isinstance(obj, float) and not math.isfinite(obj):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_for_json(v) for v in obj]
+    return obj
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Handle request validation errors, ensuring non-finite floats in inputs do not crash json serialization."""
+    sanitized_errors = _sanitize_for_json(exc.errors())
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": jsonable_encoder(sanitized_errors)},
+    )
 
 
 # Global Exception Handler (prevents leaking internal stack traces / secrets)
