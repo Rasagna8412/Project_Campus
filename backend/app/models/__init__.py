@@ -34,6 +34,13 @@ from app.models.assessment import (
     QuestionOption,
     QuestionType,
 )
+from app.models.planner import (
+    GoalStatus,
+    StudyGoal,
+    StudyTask,
+    TaskStatus,
+    TaskType,
+)
 
 __all__ = [
     "Base",
@@ -63,4 +70,9 @@ __all__ = [
     "QuestionType",
     "DifficultyLevel",
     "ErrataIssueType",
+    "StudyGoal",
+    "StudyTask",
+    "GoalStatus",
+    "TaskType",
+    "TaskStatus",
 ]

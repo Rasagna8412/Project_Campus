@@ -242,7 +242,10 @@ async def delete_student_account(
     # Explicitly cleanse child records for dual-dialect SQLite and PostgreSQL consistency
     from app.models.assessment import PracticeSession, QuestionAttempt
     from app.models.content import LessonProgress
+    from app.models.planner import StudyGoal, StudyTask
 
+    await db.execute(delete(StudyTask).where(StudyTask.user_id == current_user.id))
+    await db.execute(delete(StudyGoal).where(StudyGoal.user_id == current_user.id))
     await db.execute(delete(LessonProgress).where(LessonProgress.user_id == current_user.id))
     await db.execute(delete(QuestionAttempt).where(QuestionAttempt.user_id == current_user.id))
     await db.execute(delete(PracticeSession).where(PracticeSession.user_id == current_user.id))

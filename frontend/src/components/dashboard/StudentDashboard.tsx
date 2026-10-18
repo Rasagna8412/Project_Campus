@@ -23,12 +23,27 @@ import {
   getTopicAnalytics,
   getLearningRecommendations,
   updateStudentProfile,
+  getDailyStudyPlan,
+  generateDailyStudyPlan,
+  toggleTaskComplete,
+  getStudyGoal,
+  updateStudyGoal,
+  getCurriculumRoadmap,
 } from '../../services/api';
 import {
   DashboardAnalytics,
   LearningRecommendation,
   TopicPerformance,
 } from '../../types/progress';
+import {
+  DailyStudyPlan,
+  StudyGoal,
+  CurriculumRoadmap,
+  StudyGoalPayload,
+} from '../../types/planner';
+import { DailyStudyPlanCard } from '../planner/DailyStudyPlanCard';
+import { StudyGoalModal } from '../planner/StudyGoalModal';
+import { CurriculumRoadmapCard } from '../planner/CurriculumRoadmapCard';
 
 interface StudentDashboardProps {
   onOpenOnboarding: () => void;
@@ -59,6 +74,88 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [recommendations, setRecommendations] = useState<LearningRecommendation[]>([]);
   const [loadingAnalytics, setLoadingAnalytics] = useState<boolean>(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+
+  // Milestone 6 Planner states
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [plan, setPlan] = useState<DailyStudyPlan | null>(null);
+  const [goal, setGoal] = useState<StudyGoal | null>(null);
+  const [roadmap, setRoadmap] = useState<CurriculumRoadmap | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState<boolean>(true);
+  const [loadingRoadmap, setLoadingRoadmap] = useState<boolean>(true);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState<boolean>(false);
+
+  const fetchPlan = useCallback(async (date: string, forceGenerate: boolean = false) => {
+    setLoadingPlan(true);
+    setPlanError(null);
+    try {
+      const data = forceGenerate
+        ? await generateDailyStudyPlan(date)
+        : await getDailyStudyPlan(date);
+      setPlan(data);
+    } catch {
+      setPlanError('Failed to load study plan. Please try refreshing.');
+    } finally {
+      setLoadingPlan(false);
+    }
+  }, []);
+
+  const fetchGoalAndRoadmap = useCallback(async () => {
+    setLoadingRoadmap(true);
+    try {
+      const [goalData, roadmapData] = await Promise.all([
+        getStudyGoal().catch(() => null),
+        getCurriculumRoadmap().catch(() => null),
+      ]);
+      if (goalData) setGoal(goalData);
+      if (roadmapData) setRoadmap(roadmapData);
+    } catch {
+      // Handled gracefully
+    } finally {
+      setLoadingRoadmap(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPlan(selectedDate, false);
+  }, [fetchPlan, selectedDate]);
+
+  useEffect(() => {
+    fetchGoalAndRoadmap();
+  }, [fetchGoalAndRoadmap]);
+
+  const handleToggleTaskComplete = async (taskId: string, isCompleted: boolean) => {
+    try {
+      const updatedTask = await toggleTaskComplete(taskId, isCompleted);
+      setPlan((prev) => {
+        if (!prev) return null;
+        const updatedTasks = prev.tasks.map((t) => (t.id === taskId ? updatedTask : t));
+        const completedMins = updatedTasks
+          .filter((t) => t.is_completed)
+          .reduce((sum, t) => sum + t.estimated_minutes, 0);
+        const plannedMins = updatedTasks.reduce((sum, t) => sum + t.estimated_minutes, 0);
+        return {
+          ...prev,
+          tasks: updatedTasks,
+          completed_minutes: completedMins,
+          planned_minutes: plannedMins,
+          is_fully_completed: updatedTasks.length > 0 && updatedTasks.every((t) => t.is_completed),
+        };
+      });
+    } catch {
+      fetchPlan(selectedDate, false);
+    }
+  };
+
+  const handleSaveGoal = async (payload: StudyGoalPayload) => {
+    const updated = await updateStudyGoal(payload);
+    setGoal(updated);
+    setNewGoalMinutes(payload.daily_study_minutes);
+    await refreshProfile();
+    fetchPlan(selectedDate, true);
+  };
 
   const fetchAnalytics = useCallback(async () => {
     setLoadingAnalytics(true);
@@ -349,6 +446,27 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           <p className="text-[11px] text-slate-500 mt-1">Estimated active practice</p>
         </div>
       </div>
+
+      {/* Daily Study Plan Card (Approved Milestone 6 Dashboard Placement) */}
+      <DailyStudyPlanCard
+        plan={plan}
+        loading={loadingPlan}
+        error={planError}
+        onRefresh={(force) => fetchPlan(selectedDate, force)}
+        onToggleComplete={handleToggleTaskComplete}
+        onSelectLesson={onSelectLesson}
+        onStartPractice={onStartPractice}
+        onOpenGoalModal={() => setIsGoalModalOpen(true)}
+        selectedDate={selectedDate}
+        onDateChange={setSelectedDate}
+      />
+
+      {/* Curriculum Roadmap Card */}
+      <CurriculumRoadmapCard
+        roadmap={roadmap}
+        loading={loadingRoadmap}
+        onOpenLessons={onOpenLessons}
+      />
 
       {/* Fresh Student Onboarding Empty State */}
       {isFreshStudent && (
@@ -734,6 +852,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Study Goal Configuration Modal */}
+      <StudyGoalModal
+        goal={goal}
+        isOpen={isGoalModalOpen}
+        onClose={() => setIsGoalModalOpen(false)}
+        onSave={handleSaveGoal}
+      />
     </div>
   );
 };

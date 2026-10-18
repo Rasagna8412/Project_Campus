@@ -136,6 +136,13 @@ python scripts/run_backend.py
   * `GET /api/v1/student/analytics/dashboard` — Aggregated KPI metrics, accuracy %, practice time & activity feed
   * `GET /api/v1/student/analytics/topics` — Topic performance breakdown with deterministic mastery classification
   * `GET /api/v1/student/analytics/recommendations` — Explainable prioritized next-step learning actions
+  * `GET /api/v1/planner/goal` — Fetch or initialize active study goal for authenticated student
+  * `PUT /api/v1/planner/goal` — Update study goal parameters (daily minutes 15–300, preferred days, target date)
+  * `GET /api/v1/planner/daily` — Fetch daily study plan (with anti-snowball roll forward of past tasks)
+  * `POST /api/v1/planner/daily/generate` — Regenerate fresh daily tasks bounded by time budget & 4-task ceiling
+  * `POST /api/v1/planner/tasks/{id}/complete` — Atomic task completion toggle
+  * `POST /api/v1/planner/tasks/{id}/reschedule` — Move a task to a future date
+  * `GET /api/v1/planner/roadmap` — Hierarchical curriculum completion roadmap per subject and chapter
 
 ### 2. Frontend Setup
 ```bash
@@ -152,14 +159,14 @@ npm run build
 
 ## Running Automated Tests
 
-### Backend Tests (Pytest - 78 Tests)
+### Backend Tests (Pytest - 89 Tests)
 ```bash
 # Run all backend unit & integration tests
 $env:PYTHONPATH="backend"
 .\.venv\Scripts\pytest.exe -v
 ```
 
-### Frontend Tests (Vitest - 27 Tests across 8 Suites)
+### Frontend Tests (Vitest - 34 Tests across 9 Suites)
 ```bash
 cd frontend
 npm test
@@ -175,9 +182,10 @@ npm test
 * **Milestone 3:** Curriculum Content Foundation and Structured Lesson Viewer — **COMPLETE**
 * **Milestone 4:** Question Bank, Topic-Based Practice Engine, and Assessment Foundation — **COMPLETE**
 * **Milestone 5:** Student Progress Tracking & Learning Analytics — **COMPLETE**
-  * **Relational Progress Schema:** Alembic migration `be8ed8718838` adding `lesson_progress` table with unique constraint `(user_id, lesson_id)` (18 tables active).
-  * **Zero Cache Drift Metric Engine:** Aggregates total questions solved, correct attempts, overall accuracy, and estimated practice time dynamically from atomic records.
-  * **Deterministic Topic Mastery Classifier:** Categorizes topics into `INSUFFICIENT_DATA` (<5 Qs), `NEEDS_REVIEW` (>=5 Qs, <60%), `DEVELOPING` (>=5 Qs, 60-79.9%), and `STRONG` (>=5 Qs, >=80%).
-  * **Explainable Learning Recommendations:** Generates priority-ordered suggestions (`RESUME_LESSON` -> `REVISE_TOPIC` -> `PRACTICE_TOPIC` -> `NEXT_LESSON`).
-  * **Interactive Frontend Analytics & Progress UI:** 5-KPI header bar, topic performance matrix with status pills, recommendation action cards, activity feed, and lesson progress badges/completion toggles.
-  * **Automated Verification:** 78/78 backend Pytest tests passing; 27/27 frontend Vitest tests passing; production compilation verified with zero TypeScript errors.
+* **Milestone 6:** Study Planner & Learning Roadmap — **COMPLETE**
+  * **Relational Planner Schema:** Alembic migration `0c92f4b6848c` adding `study_goals` and `study_tasks` tables with indexed `(user_id, scheduled_date)` (20 tables active).
+  * **4-Tier Deterministic Task Generator:** Generates up to 4 tasks per day respecting daily study time budget (15–300 minutes, default 120 minutes), prioritizing in-progress lessons, revision on weak topics (<60%), next syllabus lessons, and confidence drills.
+  * **Anti-Snowball Missed-Day Policy:** Non-punitive automatic transition of past incomplete tasks to `SKIPPED`, preventing backlog avalanche while preserving historical analytics.
+  * **Interactive Frontend Planner UI:** `DailyStudyPlanCard` positioned directly below the 5-KPI analytics bar, `CurriculumRoadmapCard` tracking syllabus completion per subject, and `StudyGoalModal` for customizing time budgets.
+  * **DPDP Act 2023 Compliance:** Cascading erasure of all study goals and tasks on student account deletion.
+  * **Automated Verification:** 89/89 backend Pytest tests passing; 34/34 frontend Vitest tests passing across 9 suites; production compilation verified with zero TypeScript errors.

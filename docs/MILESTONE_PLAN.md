@@ -128,19 +128,28 @@ gantt
 
 ---
 
-### Milestone 6: Transparent AI Concept Clarifier (Grounded RAG)
-* **Goal:** Implement the contextual AI tutor with strict syllabus grounding, clear provenance, and safety guardrails.
-* **Deliverables:**
-  * Backend AI Gateway service supporting pluggable LLM providers (Google Gemini / Anthropic / OpenAI / Local Ollama) with prompt sanitization.
-  * Grounded context injection: Pulls relevant chapter text into the system prompt.
-  * Frontend Chat Drawer: Floating AI concept assistant inside lessons and practice questions with distinct purple AI badge and disclaimer.
-  * Student feedback logging (`Helpful` / `Unclear` / `Inaccurate`).
-* **Exit Criteria:**
-  * AI assistant successfully answers concept clarification questions bounded to the active chapter.
-  * System prompt blocks prompt injection attempts and refuses to output direct keys to unattempted tests.
-  * Visual AI disclaimer is prominently displayed on 100% of AI messages.
+### Milestone 6: Study Planner & Learning Roadmap
+* **Status:** Completed & Verified (October 16, 2026)
+* **Goal:** Enable students to manage daily study goals, receive prioritized daily study task lists, and track their curriculum roadmap across subjects.
+* **Deliverables Delivered:**
+  * Database entities `StudyGoal` and `StudyTask` via Alembic migration `0c92f4b6848c` (20 tables active).
+  * 4-tier deterministic task generator capped at a strict ceiling of 4 tasks per day and bounded by student's daily time budget (15–300 minutes, default 120 minutes).
+  * Anti-snowball missed-day policy marking incomplete past tasks as `SKIPPED` without deleting history.
+  * Task rescheduling (`POST /api/v1/planner/tasks/{id}/reschedule`) and atomic task completion toggle.
+  * Hierarchical curriculum roadmap endpoint (`GET /api/v1/planner/roadmap`) detailing syllabus completion per enrolled subject and chapter.
+  * Frontend UI: `DailyStudyPlanCard` (positioned directly beneath the 5-KPI section), `CurriculumRoadmapCard`, and `StudyGoalModal`.
+  * DPDP Act 2023 compliant cascading deletion of study goals and tasks on student account erasure.
+  * 18 new automated tests: 11 backend Pytest tests (89 total passing) + 7 frontend Vitest tests (34 total passing across 9 suites).
+* **Exit Criteria Verified:**
+  * Daily plans generated deterministically with a maximum of 4 tasks matching the time budget.
+  * Task completion toggle updates task status without mutating lesson progress records.
+  * All 89 backend Pytest tests and 34 frontend Vitest tests pass with 100% success rate.
+  * Frontend production build passes with 0 TypeScript errors.
 
 ---
+
+### Milestone 7: Transparent AI Concept Clarifier (Grounded RAG)
+* **Goal:** Implement the contextual AI tutor with strict syllabus grounding, clear provenance, and safety guardrails.
 
 ### Milestone 7: Spaced Repetition Scheduling & Study Planner
 * **Goal:** Enable students to retain long-term memory through automated revision queues and exam preparation milestones.

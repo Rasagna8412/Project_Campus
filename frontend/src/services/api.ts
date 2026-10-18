@@ -28,6 +28,13 @@ import {
   LessonProgress,
   TopicPerformance,
 } from '../types/progress';
+import {
+  CurriculumRoadmap,
+  DailyStudyPlan,
+  StudyGoal,
+  StudyGoalPayload,
+  StudyTask,
+} from '../types/planner';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const TOKEN_STORAGE_KEY = 'campus_auth_token';
@@ -359,5 +366,68 @@ export async function getLearningRecommendations(): Promise<LearningRecommendati
     method: 'GET',
   });
 }
+
+/**
+ * Study Planner & Learning Roadmap
+ */
+export async function getStudyGoal(): Promise<StudyGoal> {
+  return await apiRequest<StudyGoal>('/api/v1/planner/goal', {
+    method: 'GET',
+  });
+}
+
+export async function updateStudyGoal(payload: StudyGoalPayload): Promise<StudyGoal> {
+  return await apiRequest<StudyGoal>('/api/v1/planner/goal', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getDailyStudyPlan(planDate?: string): Promise<DailyStudyPlan> {
+  const query = planDate ? `?plan_date=${planDate}` : '';
+  return await apiRequest<DailyStudyPlan>(`/api/v1/planner/daily${query}`, {
+    method: 'GET',
+  });
+}
+
+export async function generateDailyStudyPlan(
+  planDate?: string,
+  forceRefresh: boolean = false
+): Promise<DailyStudyPlan> {
+  const params = new URLSearchParams();
+  if (planDate) params.append('plan_date', planDate);
+  if (forceRefresh) params.append('force_refresh', 'true');
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return await apiRequest<DailyStudyPlan>(`/api/v1/planner/daily/generate${qs}`, {
+    method: 'POST',
+  });
+}
+
+export async function toggleTaskComplete(
+  taskId: string,
+  isCompleted: boolean
+): Promise<StudyTask> {
+  return await apiRequest<StudyTask>(`/api/v1/planner/tasks/${taskId}/complete`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_completed: isCompleted }),
+  });
+}
+
+export async function rescheduleTask(
+  taskId: string,
+  newDate: string
+): Promise<StudyTask> {
+  return await apiRequest<StudyTask>(`/api/v1/planner/tasks/${taskId}/reschedule`, {
+    method: 'PATCH',
+    body: JSON.stringify({ new_date: newDate }),
+  });
+}
+
+export async function getCurriculumRoadmap(): Promise<CurriculumRoadmap> {
+  return await apiRequest<CurriculumRoadmap>('/api/v1/planner/roadmap', {
+    method: 'GET',
+  });
+}
+
 
 
