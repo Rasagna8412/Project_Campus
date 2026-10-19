@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     planner,
     practice,
     progress,
+    review,
     student,
 )
 
@@ -21,3 +22,4 @@ api_router.include_router(progress.router, prefix="/student/progress", tags=["St
 api_router.include_router(analytics.router, prefix="/student/analytics", tags=["Student Learning Analytics"])
 api_router.include_router(practice.router, prefix="/practice", tags=["Practice & Assessment"])
 api_router.include_router(planner.router, prefix="/planner", tags=["Study Planner & Learning Roadmap"])
+api_router.include_router(review.router, prefix="/review", tags=["Spaced Repetition & Revision Queue"])

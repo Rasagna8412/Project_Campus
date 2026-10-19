@@ -243,7 +243,10 @@ async def delete_student_account(
     from app.models.assessment import PracticeSession, QuestionAttempt
     from app.models.content import LessonProgress
     from app.models.planner import StudyGoal, StudyTask
+    from app.models.repetition import ReviewItem, ReviewLog
 
+    await db.execute(delete(ReviewLog).where(ReviewLog.user_id == current_user.id))
+    await db.execute(delete(ReviewItem).where(ReviewItem.user_id == current_user.id))
     await db.execute(delete(StudyTask).where(StudyTask.user_id == current_user.id))
     await db.execute(delete(StudyGoal).where(StudyGoal.user_id == current_user.id))
     await db.execute(delete(LessonProgress).where(LessonProgress.user_id == current_user.id))

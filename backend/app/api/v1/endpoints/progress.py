@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import require_role
 from app.core.database import get_db
+from app.core.review_service import trigger_review_item_on_lesson_complete
 from app.models.content import ContentStatus, Lesson, LessonProgress, LessonProgressStatus
 from app.models.identity import User
 from app.schemas.progress import LessonProgressResponse
@@ -216,6 +217,9 @@ async def mark_lesson_completed(
         if not progress.completed_at:
             progress.completed_at = now
         progress.last_accessed_at = now
+
+    # Trigger review item creation for spaced repetition tracking
+    await trigger_review_item_on_lesson_complete(current_user.id, lesson.id, db)
 
     await db.commit()
     await db.refresh(progress)

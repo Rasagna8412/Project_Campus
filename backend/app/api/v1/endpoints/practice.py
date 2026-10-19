@@ -20,6 +20,7 @@ from app.models.assessment import (
     QuestionOption,
     QuestionType,
 )
+from app.core.review_service import trigger_review_item_on_practice_complete
 from app.models.content import ContentStatus
 from app.models.identity import User
 from app.models.taxonomy import Topic
@@ -420,6 +421,14 @@ async def submit_answer(
         if attempt_count >= session.total_questions:
             session.is_completed = True
             session.completed_at = datetime.now(timezone.utc)
+            # Trigger review item creation for spaced repetition tracking if qualifying
+            await trigger_review_item_on_practice_complete(
+                current_user.id,
+                session.topic_id,
+                session.correct_count,
+                session.total_questions,
+                db,
+            )
 
     await db.commit()
 

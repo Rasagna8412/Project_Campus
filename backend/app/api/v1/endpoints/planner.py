@@ -16,6 +16,7 @@ from app.core.database import get_db
 from app.models.content import ContentStatus, Lesson, LessonProgress, LessonProgressStatus
 from app.models.identity import StudentProfile, StudentProfileSubject, User
 from app.models.planner import GoalStatus, StudyGoal, StudyTask, TaskStatus, TaskType
+from app.models.repetition import ReviewItem
 from app.models.taxonomy import Chapter, Subject, Topic
 from app.schemas.planner import (
     ChapterRoadmapItem,
@@ -267,7 +268,72 @@ async def _generate_tasks_for_date(
             accumulated_minutes += est
             resume_count += 1
 
-    # Fetch topic analytics once for both Priority 2 and 3 (L-2)
+    # Priority 2: Due Spaced Repetition Topic Review - MAX 1 per day
+    max_review = 1
+    review_count = 0
+    if (
+        (len(preserved_tasks) + len(generated_tasks)) < max_total_tasks
+        and accumulated_minutes < target_budget
+    ):
+        review_stmt = (
+            select(ReviewItem)
+            .where(
+                ReviewItem.user_id == user_id,
+                ReviewItem.due_date <= target_date,
+            )
+            .options(
+                selectinload(ReviewItem.topic)
+                .selectinload(Topic.chapter)
+                .selectinload(Chapter.subject)
+            )
+            .order_by(
+                ReviewItem.due_date.asc(),
+                ReviewItem.repetition_count.asc(),
+            )
+        )
+        due_review_items = (await db.execute(review_stmt)).scalars().all()
+        for rev_item in due_review_items:
+            if review_count >= max_review:
+                break
+            if rev_item.topic_id in scheduled_topic_ids:
+                continue
+            if can_add_task(15):
+                top = rev_item.topic
+                subj_id = (
+                    top.chapter.subject_id
+                    if top and top.chapter
+                    else rev_item.subject_id
+                )
+                subj_name = (
+                    top.chapter.subject.name
+                    if top and top.chapter and top.chapter.subject
+                    else None
+                )
+                task = StudyTask(
+                    user_id=user_id,
+                    goal_id=goal.id,
+                    scheduled_date=target_date,
+                    task_type=TaskType.REVISE_TOPIC.value,
+                    title=f"Spaced Review: {top.title if top else 'Topic Review'}",
+                    subject_id=subj_id,
+                    subject_name=subj_name,
+                    chapter_id=top.chapter_id if top else None,
+                    topic_id=rev_item.topic_id,
+                    estimated_minutes=15,
+                    status=TaskStatus.PENDING.value,
+                    is_completed=False,
+                    display_order=get_next_display_order(),
+                    reason=(
+                        f"Due for spaced repetition review (Interval: {rev_item.interval_days}d, "
+                        f"Repetitions: {rev_item.repetition_count}). Reinforce recall to consolidate memory."
+                    ),
+                )
+                generated_tasks.append(task)
+                scheduled_topic_ids.add(rev_item.topic_id)
+                accumulated_minutes += 15
+                review_count += 1
+
+    # Fetch topic analytics once for both Priority 3 and 4
     topic_analytics = []
     if (
         (len(preserved_tasks) + len(generated_tasks)) < max_total_tasks
@@ -276,7 +342,7 @@ async def _generate_tasks_for_date(
         dummy_user = User(id=user_id, email="", full_name="", hashed_password="")
         topic_analytics = await get_topic_analytics(current_user=dummy_user, db=db)
 
-    # Priority 2: Revise struggling topics (NEEDS_REVIEW: >= 5 attempts, accuracy < 60%)
+    # Priority 3: Revise struggling topics (NEEDS_REVIEW: >= 5 attempts, accuracy < 60%)
     if (
         (len(preserved_tasks) + len(generated_tasks)) < max_total_tasks
         and accumulated_minutes < target_budget
@@ -314,7 +380,7 @@ async def _generate_tasks_for_date(
             scheduled_topic_ids.add(top.topic_id)
             accumulated_minutes += 15
 
-    # Priority 3: Low-confidence topic drill (<5 attempts, INSUFFICIENT_DATA)
+    # Priority 4: Low-confidence topic drill (<5 attempts, INSUFFICIENT_DATA)
     if (
         (len(preserved_tasks) + len(generated_tasks)) < max_total_tasks
         and accumulated_minutes < target_budget
@@ -350,7 +416,7 @@ async def _generate_tasks_for_date(
             scheduled_topic_ids.add(top.topic_id)
             accumulated_minutes += 15
 
-    # Priority 4: Next unstarted published lesson in syllabus sequence (H-3, L-1)
+    # Priority 5: Next unstarted published lesson in syllabus sequence (H-3, L-1)
     # ONLY schedule if student has enrolled subjects to prevent leaking arbitrary global curricula
     if (
         enrolled_subject_ids

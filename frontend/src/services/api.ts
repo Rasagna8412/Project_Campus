@@ -35,6 +35,13 @@ import {
   StudyGoalPayload,
   StudyTask,
 } from '../types/planner';
+import {
+  ReviewHistoryResponse,
+  ReviewQueueResponse,
+  ReviewStatsResponse,
+  ReviewSubmitRequest,
+  ReviewSubmitResponse,
+} from '../types/repetition';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const TOKEN_STORAGE_KEY = 'campus_auth_token';
@@ -425,6 +432,56 @@ export async function rescheduleTask(
 
 export async function getCurriculumRoadmap(): Promise<CurriculumRoadmap> {
   return await apiRequest<CurriculumRoadmap>('/api/v1/planner/roadmap', {
+    method: 'GET',
+  });
+}
+
+/**
+ * Spaced Repetition and Revision Queue Endpoints
+ */
+export async function getReviewQueue(
+  subjectId?: string,
+  limit?: number
+): Promise<ReviewQueueResponse> {
+  const params = new URLSearchParams();
+  if (subjectId) params.append('subject_id', subjectId);
+  if (limit !== undefined) params.append('limit', limit.toString());
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return await apiRequest<ReviewQueueResponse>(`/api/v1/review/queue${qs}`, {
+    method: 'GET',
+  });
+}
+
+export async function submitReviewRating(
+  itemId: string,
+  qualityScore: number,
+  timeSpentSeconds?: number
+): Promise<ReviewSubmitResponse> {
+  const payload: ReviewSubmitRequest = {
+    quality_score: qualityScore,
+    time_spent_seconds: timeSpentSeconds,
+  };
+  return await apiRequest<ReviewSubmitResponse>(`/api/v1/review/items/${itemId}/submit`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getReviewHistory(
+  page: number = 1,
+  pageSize: number = 20
+): Promise<ReviewHistoryResponse> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+  return await apiRequest<ReviewHistoryResponse>(`/api/v1/review/history?${params.toString()}`, {
+    method: 'GET',
+  });
+}
+
+export async function getReviewStats(): Promise<ReviewStatsResponse> {
+  return await apiRequest<ReviewStatsResponse>('/api/v1/review/stats', {
     method: 'GET',
   });
 }

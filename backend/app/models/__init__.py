@@ -41,6 +41,11 @@ from app.models.planner import (
     TaskStatus,
     TaskType,
 )
+from app.models.repetition import (
+    ReviewItem,
+    ReviewLog,
+    ReviewStatus,
+)
 
 __all__ = [
     "Base",
@@ -75,4 +80,7 @@ __all__ = [
     "GoalStatus",
     "TaskType",
     "TaskStatus",
+    "ReviewItem",
+    "ReviewLog",
+    "ReviewStatus",
 ]

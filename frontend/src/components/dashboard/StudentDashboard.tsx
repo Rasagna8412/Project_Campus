@@ -29,6 +29,9 @@ import {
   getStudyGoal,
   updateStudyGoal,
   getCurriculumRoadmap,
+  getReviewQueue,
+  submitReviewRating,
+  getReviewStats,
 } from '../../services/api';
 import {
   DashboardAnalytics,
@@ -41,9 +44,16 @@ import {
   CurriculumRoadmap,
   StudyGoalPayload,
 } from '../../types/planner';
+import {
+  ReviewItemSummary,
+  ReviewQueueResponse,
+  ReviewStatsResponse,
+} from '../../types/repetition';
 import { DailyStudyPlanCard } from '../planner/DailyStudyPlanCard';
 import { StudyGoalModal } from '../planner/StudyGoalModal';
 import { CurriculumRoadmapCard } from '../planner/CurriculumRoadmapCard';
+import { DailyReviewQueueCard } from '../review/DailyReviewQueueCard';
+import { FlashcardReviewModal } from '../review/FlashcardReviewModal';
 
 interface StudentDashboardProps {
   onOpenOnboarding: () => void;
@@ -125,6 +135,50 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   useEffect(() => {
     fetchGoalAndRoadmap();
   }, [fetchGoalAndRoadmap]);
+
+  // Milestone 7 Spaced Repetition states
+  const [reviewQueue, setReviewQueue] = useState<ReviewQueueResponse | null>(null);
+  const [reviewStats, setReviewStats] = useState<ReviewStatsResponse | null>(null);
+  const [loadingReview, setLoadingReview] = useState<boolean>(true);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [activeReviewItem, setActiveReviewItem] = useState<ReviewItemSummary | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
+
+  const fetchReviewData = useCallback(async () => {
+    setLoadingReview(true);
+    setReviewError(null);
+    try {
+      const [queueData, statsData] = await Promise.all([
+        getReviewQueue().catch((e) => {
+          throw e;
+        }),
+        getReviewStats().catch(() => null),
+      ]);
+      setReviewQueue(queueData);
+      if (statsData) setReviewStats(statsData);
+    } catch {
+      setReviewError('Failed to load spaced repetition review queue.');
+    } finally {
+      setLoadingReview(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReviewData();
+  }, [fetchReviewData]);
+
+  const handleStartReview = (item: ReviewItemSummary) => {
+    setActiveReviewItem(item);
+    setIsReviewModalOpen(true);
+  };
+
+  const handleSubmitReviewRating = async (itemId: string, score: number, timeSpent: number) => {
+    await submitReviewRating(itemId, score, timeSpent);
+    await Promise.all([
+      fetchReviewData(),
+      fetchPlan(selectedDate, false),
+    ]);
+  };
 
   const handleToggleTaskComplete = async (taskId: string, isCompleted: boolean) => {
     try {
@@ -459,6 +513,17 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         onOpenGoalModal={() => setIsGoalModalOpen(true)}
         selectedDate={selectedDate}
         onDateChange={setSelectedDate}
+      />
+
+      {/* Spaced Repetition & Revision Queue (Milestone 7) */}
+      <DailyReviewQueueCard
+        queue={reviewQueue}
+        stats={reviewStats}
+        loading={loadingReview}
+        error={reviewError}
+        onRefresh={fetchReviewData}
+        onStartReview={handleStartReview}
+        onStartPractice={onStartPractice}
       />
 
       {/* Curriculum Roadmap Card */}
@@ -859,6 +924,18 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         isOpen={isGoalModalOpen}
         onClose={() => setIsGoalModalOpen(false)}
         onSave={handleSaveGoal}
+      />
+
+      {/* Spaced Repetition Active Recall Modal (Milestone 7) */}
+      <FlashcardReviewModal
+        item={activeReviewItem}
+        isOpen={isReviewModalOpen}
+        onClose={() => {
+          setIsReviewModalOpen(false);
+          setActiveReviewItem(null);
+        }}
+        onSubmitRating={handleSubmitReviewRating}
+        onStartPractice={onStartPractice}
       />
     </div>
   );
