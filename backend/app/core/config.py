@@ -27,7 +27,13 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
+    # Database Configuration & Connection Pooling
     DATABASE_URL: str = f"sqlite+aiosqlite:///{DEFAULT_DB_PATH}"
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_TIMEOUT: int = 30
+    DB_POOL_RECYCLE: int = 1800
+    DB_POOL_PRE_PING: bool = True
     LOG_LEVEL: str = "INFO"
 
     # Authentication & Session Security
@@ -41,6 +47,16 @@ class Settings(BaseSettings):
     # Rate Limiting
     AUTH_RATE_LIMIT_MAX_ATTEMPTS: int = 5
     AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 60
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_database_url(cls, v: str) -> str:
+        if isinstance(v, str):
+            if v.startswith("postgres://"):
+                return "postgresql+asyncpg://" + v[len("postgres://"):]
+            if v.startswith("postgresql://") and not v.startswith("postgresql+"):
+                return "postgresql+asyncpg://" + v[len("postgresql://"):]
+        return v
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -65,6 +81,18 @@ class Settings(BaseSettings):
                 )
             if not self.AUTH_COOKIE_SECURE:
                 object.__setattr__(self, "AUTH_COOKIE_SECURE", True)
+            if self.DB_POOL_SIZE < 1:
+                raise ValueError("DB_POOL_SIZE must be at least 1 in production.")
+            if self.DB_MAX_OVERFLOW < 0:
+                raise ValueError("DB_MAX_OVERFLOW cannot be negative.")
+            if not self.DATABASE_URL.startswith("sqlite"):
+                if not (
+                    self.DATABASE_URL.startswith("postgresql+asyncpg://")
+                    or self.DATABASE_URL.startswith("postgresql+psycopg://")
+                ):
+                    raise ValueError(
+                        "Production PostgreSQL database URL must specify an asynchronous driver (e.g. 'postgresql+asyncpg://...')."
+                    )
         return self
 
     model_config = SettingsConfigDict(

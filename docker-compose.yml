@@ -1,0 +1,85 @@
+# ==============================================================================
+# Project Campus — Local Integration & Testing Compose Configuration
+# Orchestrates PostgreSQL 15, FastAPI Backend, and React Frontend
+# ==============================================================================
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: campus_postgres_test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-campus_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-campus_dev_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-project_campus_test}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-campus_user} -d ${POSTGRES_DB:-project_campus_test}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - campus_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: campus_backend_test
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-campus_user}:${POSTGRES_PASSWORD:-campus_dev_secret}@postgres:5432/${POSTGRES_DB:-project_campus_test}
+      SECRET_KEY: ${SECRET_KEY:-dev-insecure-secret-key-change-in-production-campus-2026-xyz}
+      HOST: "0.0.0.0"
+      PORT: 8000
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:5173,http://127.0.0.1:5173}
+      AUTH_COOKIE_SECURE: "false"
+      DB_POOL_SIZE: 5
+      DB_MAX_OVERFLOW: 10
+      DB_POOL_PRE_PING: "true"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - campus_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: campus_frontend_test
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - campus_network
+
+volumes:
+  postgres_test_data:
+    name: campus_postgres_test_data
+
+networks:
+  campus_network:
+    name: campus_test_network

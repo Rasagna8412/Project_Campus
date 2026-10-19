@@ -1,0 +1,114 @@
+# ==============================================================================
+# Project Campus — Production Compose Configuration
+# ==============================================================================
+# ARCHITECTURAL NOTICE:
+# - This configuration is designed for production deployments.
+# - The internal 'postgres' service below does NOT bind to any host ports and is
+#   strictly isolated on the private 'campus_internal' Docker network.
+#
+# USING AN EXTERNAL MANAGED DATABASE (e.g. AWS RDS, Supabase, Azure, GCP Cloud SQL):
+# - Set DATABASE_URL in .env to your managed PostgreSQL instance.
+# - In this file, comment out the 'postgres' service and the 'depends_on' section under 'backend'.
+# - The 'backend' container will connect directly to the external managed database over TLS.
+#
+# HIGH AVAILABILITY & DISASTER RECOVERY DISCLAIMER:
+# - Docker Compose alone DOES NOT provide high availability (HA), automatic failover,
+#   or disaster recovery (DR). Enterprise HA requires cloud multi-AZ managed databases
+#   and continuous point-in-time recovery WAL archiving (e.g. pgBackRest).
+#
+# BACKUP & RESTORE GUIDANCE:
+# 1. Backup (generates custom-format compressed backup):
+#    docker compose -f docker-compose.production.yml exec -T postgres \
+#      pg_dump -U ${POSTGRES_USER} -d ${POSTGRES_DB} -Fc > backup_$(date +%Y%m%d_%H%M%S).dump
+#
+# 2. Restore (CRITICAL SAFEGUARDS AGAINST RESTORING INTO WRONG DATABASE):
+#    a. ALWAYS confirm current database target and user identity BEFORE restoring:
+#       docker compose -f docker-compose.production.yml exec -T postgres \
+#         psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "SELECT current_database(), current_user, inet_server_addr();"
+#    b. Execute restore into the verified target:
+#       docker compose -f docker-compose.production.yml exec -T postgres \
+#         pg_restore -U ${POSTGRES_USER} -d ${POSTGRES_DB} --clean --if-exists < backup.dump
+# ==============================================================================
+
+services:
+  # Internal isolated PostgreSQL service (No public host port exposed)
+  postgres:
+    image: postgres:15-alpine
+    container_name: campus_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Mandatory production POSTGRES_USER must be set in environment}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Mandatory production POSTGRES_PASSWORD must be set in environment}
+      POSTGRES_DB: ${POSTGRES_DB:?Mandatory production POSTGRES_DB must be set in environment}
+    volumes:
+      - campus_prod_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - campus_internal
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: campus_backend_prod
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: ${DATABASE_URL:?Mandatory production DATABASE_URL must be set (e.g. postgresql+asyncpg://user:pass@postgres:5432/dbname)}
+      SECRET_KEY: ${SECRET_KEY:?Mandatory high-entropy production SECRET_KEY must be set (minimum 32 characters)}
+      HOST: "0.0.0.0"
+      PORT: 8000
+      CORS_ORIGINS: ${CORS_ORIGINS:?Mandatory production CORS_ORIGINS must be set}
+      AUTH_COOKIE_SECURE: "true"
+      AUTH_COOKIE_SAMESITE: "lax"
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-20}
+      DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-30}
+      DB_POOL_RECYCLE: ${DB_POOL_RECYCLE:-1800}
+      DB_POOL_PRE_PING: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - campus_internal
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: campus_frontend_prod
+    restart: always
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      # Expose HTTP port 80 (typically terminated behind cloud load balancer or SSL ingress)
+      - "80:80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - campus_internal
+
+volumes:
+  campus_prod_postgres_data:
+    name: campus_prod_postgres_data
+
+networks:
+  campus_internal:
+    name: campus_prod_internal
+    internal: false

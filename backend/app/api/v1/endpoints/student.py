@@ -239,21 +239,39 @@ async def delete_student_account(
     current_user: User = Depends(require_role("STUDENT")),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    """Permanently delete a student's account and all associated personal records."""
     # Explicitly cleanse child records for dual-dialect SQLite and PostgreSQL consistency
-    from app.models.assessment import PracticeSession, QuestionAttempt
+    from app.models.assessment import (
+        PracticeSession,
+        QuestionAttempt,
+        QuestionErrataReport,
+    )
     from app.models.content import LessonProgress
+    from app.models.identity import StudentProfile, StudentProfileSubject, UserRole
     from app.models.planner import StudyGoal, StudyTask
     from app.models.repetition import ReviewItem, ReviewLog
 
-    await db.execute(delete(ReviewLog).where(ReviewLog.user_id == current_user.id))
-    await db.execute(delete(ReviewItem).where(ReviewItem.user_id == current_user.id))
-    await db.execute(delete(StudyTask).where(StudyTask.user_id == current_user.id))
-    await db.execute(delete(StudyGoal).where(StudyGoal.user_id == current_user.id))
-    await db.execute(delete(LessonProgress).where(LessonProgress.user_id == current_user.id))
-    await db.execute(delete(QuestionAttempt).where(QuestionAttempt.user_id == current_user.id))
-    await db.execute(delete(PracticeSession).where(PracticeSession.user_id == current_user.id))
-    await db.delete(current_user)
-    await db.commit()
+    try:
+        # 1. Cleanse repetition queue and review logs
+        await db.execute(delete(ReviewLog).where(ReviewLog.user_id == current_user.id))
+        await db.execute(delete(ReviewItem).where(ReviewItem.user_id == current_user.id))
+        # 2. Cleanse study planner tasks and goals
+        await db.execute(delete(StudyTask).where(StudyTask.user_id == current_user.id))
+        await db.execute(delete(StudyGoal).where(StudyGoal.user_id == current_user.id))
+        # 3. Cleanse curriculum lesson progress
+        await db.execute(delete(LessonProgress).where(LessonProgress.user_id == current_user.id))
+        # 4. Cleanse student-submitted errata feedback reports
+        await db.execute(delete(QuestionErrataReport).where(QuestionErrataReport.user_id == current_user.id))
+        # 5. Cleanse interactive attempts and practice sessions
+        await db.execute(delete(QuestionAttempt).where(QuestionAttempt.user_id == current_user.id))
+        await db.execute(delete(PracticeSession).where(PracticeSession.user_id == current_user.id))
+        # 6. Delete user identity (ORM cascades cleanly to student_profile, selected_subjects, and user_roles)
+        await db.delete(current_user)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+
     return {
         "status": "success",
         "message": "Student account and all associated personal records permanently deleted.",

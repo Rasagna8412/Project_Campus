@@ -33,12 +33,13 @@ target_metadata = Base.metadata
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = config.get_main_option("sqlalchemy.url")
+    is_sqlite = url.startswith("sqlite") if url else True
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        render_as_batch=True,  # Enables batch mode for SQLite compatibility
+        render_as_batch=is_sqlite,  # Enables batch mode for SQLite compatibility
     )
 
     with context.begin_transaction():
@@ -49,7 +50,7 @@ def do_run_migrations(connection: Connection) -> None:
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        render_as_batch=True,  # Enables batch mode for SQLite compatibility
+        render_as_batch=(connection.dialect.name == "sqlite"),  # Enables batch mode for SQLite compatibility
     )
 
     with context.begin_transaction():
