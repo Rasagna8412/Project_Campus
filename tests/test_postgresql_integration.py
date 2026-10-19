@@ -179,9 +179,91 @@ async def test_live_postgres_concurrent_pool_connections(pg_engine):
 @requires_live_postgres
 @pytest.mark.asyncio
 async def test_live_postgres_savepoint_collision_handling(pg_session: AsyncSession):
-    """Verify PostgreSQL transaction savepoint (begin_nested) handles concurrent key collision."""
-    # Test savepoint rollback mechanics under PostgreSQL
-    async with pg_session.begin_nested():
-        await pg_session.execute(text("SELECT 1"))
-    # Savepoint committed cleanly
-    assert True
+    """Verify PostgreSQL transaction savepoint (begin_nested) handles key collision and rolls back cleanly without invalidating outer transaction."""
+    # Create an isolated temporary test table within this transaction
+    await pg_session.execute(
+        text("CREATE TEMP TABLE _test_collision (id int PRIMARY KEY, val text) ON COMMIT DROP")
+    )
+    await pg_session.execute(text("INSERT INTO _test_collision (id, val) VALUES (1, 'initial')"))
+
+    # Attempt duplicate insert inside a nested savepoint
+    savepoint_rolled_back = False
+    try:
+        async with pg_session.begin_nested():
+            await pg_session.execute(
+                text("INSERT INTO _test_collision (id, val) VALUES (1, 'collision')")
+            )
+    except Exception:
+        # Savepoint automatically rolled back on exception
+        savepoint_rolled_back = True
+
+    assert savepoint_rolled_back is True
+
+    # Under PostgreSQL, without a savepoint, the entire transaction would be aborted (InFailedSqlTransaction).
+    # Because begin_nested() rolled back to the savepoint, subsequent queries in the outer transaction succeed.
+    res = await pg_session.execute(text("SELECT val FROM _test_collision WHERE id = 1"))
+    val = res.scalar()
+    assert val == "initial"
+
+
+@requires_live_postgres
+@pytest.mark.asyncio
+async def test_live_postgres_for_update_skip_locked(pg_engine):
+    """Verify live PostgreSQL row-level locking with FOR UPDATE SKIP LOCKED across two concurrent sessions."""
+    # Ensure test table exists
+    async with pg_engine.begin() as init_conn:
+        await init_conn.execute(
+            text("CREATE TABLE IF NOT EXISTS _test_queue_lock (id INT PRIMARY KEY, payload TEXT);")
+        )
+        await init_conn.execute(text("TRUNCATE _test_queue_lock;"))
+        await init_conn.execute(
+            text("INSERT INTO _test_queue_lock (id, payload) VALUES (101, 'task_1'), (102, 'task_2');")
+        )
+
+    try:
+        session_factory = async_sessionmaker(bind=pg_engine, class_=AsyncSession, expire_on_commit=False)
+
+        async with session_factory() as session1, session_factory() as session2:
+            try:
+                # Session 1 locks the first available row
+                q1 = await session1.execute(
+                    text("SELECT id FROM _test_queue_lock ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED;")
+                )
+                locked_id_1 = q1.scalar()
+                assert locked_id_1 == 101
+
+                # Session 2 concurrently requests the first available row with SKIP LOCKED
+                # Since row 101 is locked by Session 1, Session 2 MUST skip row 101 and lock row 102!
+                q2 = await session2.execute(
+                    text("SELECT id FROM _test_queue_lock ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED;")
+                )
+                locked_id_2 = q2.scalar()
+                assert locked_id_2 == 102
+            finally:
+                await session1.rollback()
+                await session2.rollback()
+    finally:
+        # Clean up test table even if assertions fail
+        async with pg_engine.begin() as cleanup_conn:
+            await cleanup_conn.execute(text("DROP TABLE IF EXISTS _test_queue_lock;"))
+
+
+
+@requires_live_postgres
+@pytest.mark.asyncio
+async def test_live_postgres_foreign_key_cascade_deletion(pg_session: AsyncSession):
+    """Verify that PostgreSQL enforces native FOREIGN KEY ... ON DELETE CASCADE on real schema tables."""
+    await pg_session.execute(
+        text("CREATE TEMP TABLE _test_parent (id int PRIMARY KEY) ON COMMIT DROP;")
+    )
+    await pg_session.execute(
+        text("CREATE TEMP TABLE _test_child (id int PRIMARY KEY, parent_id int REFERENCES _test_parent(id) ON DELETE CASCADE) ON COMMIT DROP;")
+    )
+    await pg_session.execute(text("INSERT INTO _test_parent VALUES (1);"))
+    await pg_session.execute(text("INSERT INTO _test_child VALUES (10, 1);"))
+
+    # Deleting parent must automatically delete child via PostgreSQL engine cascade
+    await pg_session.execute(text("DELETE FROM _test_parent WHERE id = 1;"))
+    res = await pg_session.execute(text("SELECT COUNT(*) FROM _test_child WHERE id = 10;"))
+    assert res.scalar() == 0
+

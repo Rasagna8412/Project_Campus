@@ -74,12 +74,28 @@ jobs:
 
       - name: Run PostgreSQL integration tests
         run: |
-          pytest tests/test_postgresql_integration.py -v | tee pg_test_output.log
-          if grep -q "skipped" pg_test_output.log; then
-            echo "ERROR: PostgreSQL integration tests were skipped unexpectedly in CI!"
-            exit 1
-          fi
-          echo "All PostgreSQL integration tests executed and passed without skips."
+          pytest tests/test_postgresql_integration.py -v --junitxml=pg_test_report.xml
+          python -c '
+          import xml.etree.ElementTree as ET, sys
+          tree = ET.parse("pg_test_report.xml")
+          root = tree.getroot()
+          suite = root if root.tag == "testsuite" else root.find("testsuite")
+          tests = int(suite.attrib.get("tests", 0))
+          failures = int(suite.attrib.get("failures", 0))
+          errors = int(suite.attrib.get("errors", 0))
+          skipped = int(suite.attrib.get("skipped", 0))
+          print(f"PostgreSQL Integration Report: Total={tests}, Failures={failures}, Errors={errors}, Skipped={skipped}")
+          if failures > 0 or errors > 0:
+              print("PostgreSQL integration tests failed!", file=sys.stderr)
+              sys.exit(1)
+          if skipped > 0:
+              print(f"ERROR: {skipped} PostgreSQL integration test(s) were skipped in CI!", file=sys.stderr)
+              sys.exit(1)
+          if tests < 9:
+              print(f"ERROR: Expected at least 9 PostgreSQL integration tests, found {tests}!", file=sys.stderr)
+              sys.exit(1)
+          print("All PostgreSQL integration tests executed and passed without skips.")
+          '
 
       - name: Run full backend test suite
         run: |
@@ -112,3 +128,76 @@ jobs:
       - name: Build frontend for production
         working-directory: frontend
         run: npm run build
+
+  containers:
+    name: Container Build & Startup Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose configurations
+        run: |
+          docker compose config --quiet
+          POSTGRES_USER=campus_user POSTGRES_PASSWORD=campus_pass POSTGRES_DB=campus_db \
+          DATABASE_URL=postgresql+asyncpg://campus_user:campus_pass@postgres:5432/campus_db \
+          SECRET_KEY=ci-test-production-secret-key-minimum-32-chars-long \
+          CORS_ORIGINS=http://localhost \
+          docker compose -f docker-compose.production.yml config --quiet
+          echo "All Docker Compose configurations validated successfully."
+
+      - name: Build backend container image
+        run: |
+          docker build -t project-campus-backend:test ./backend
+
+      - name: Build frontend container image
+        run: |
+          docker build -t project-campus-frontend:test ./frontend
+
+      - name: Verify container startup and health checks
+        run: |
+          docker network create campus_ci_net
+          docker run -d --name pg_test --network campus_ci_net \
+            -e POSTGRES_USER=test_user \
+            -e POSTGRES_PASSWORD=test_pass \
+            -e POSTGRES_DB=test_db \
+            postgres:15-alpine
+          
+          # Wait for PostgreSQL readiness
+          for i in {1..20}; do
+            if docker exec pg_test pg_isready -U test_user -d test_db; then
+              echo "PostgreSQL container is ready."
+              break
+            fi
+            sleep 1
+          done
+
+          # Start backend container
+          docker run -d --name backend_test --network campus_ci_net \
+            -e ENVIRONMENT=test \
+            -e SECRET_KEY=ci-test-production-secret-key-minimum-32-chars-long \
+            -e DATABASE_URL=postgresql+asyncpg://test_user:test_pass@pg_test:5432/test_db \
+            project-campus-backend:test
+
+          # Poll for healthy status
+          for i in {1..20}; do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' backend_test 2>/dev/null || echo "starting")
+            echo "Backend container health check status: $STATUS"
+            if [ "$STATUS" = "healthy" ]; then
+              echo "Backend container reached healthy state successfully."
+              break
+            fi
+            sleep 2
+          done
+
+          # Verify endpoint responds 200 OK
+          docker exec backend_test curl -f http://localhost:8000/health
+
+          # Clean up disposable test containers and network
+          docker stop backend_test pg_test
+          docker rm backend_test pg_test
+          docker network rm campus_ci_net
+          echo "Container startup and health check verification completed cleanly."
+
