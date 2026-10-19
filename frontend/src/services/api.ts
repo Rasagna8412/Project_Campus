@@ -42,6 +42,12 @@ import {
   ReviewSubmitRequest,
   ReviewSubmitResponse,
 } from '../types/repetition';
+import {
+  DiagnosticMatrixResponse,
+  PlannerTrendsResponse,
+  PracticeTrendsResponse,
+  RetentionTrendsResponse,
+} from '../types/analytics_trends';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const TOKEN_STORAGE_KEY = 'campus_auth_token';
@@ -485,6 +491,43 @@ export async function getReviewStats(): Promise<ReviewStatsResponse> {
     method: 'GET',
   });
 }
+
+/**
+ * Milestone 8: Student Learning Analytics, Diagnostic Trends & Progress Visualization Endpoints
+ */
+
+export async function getPracticeTrends(
+  days: number = 7
+): Promise<PracticeTrendsResponse> {
+  return await apiRequest<PracticeTrendsResponse>(
+    `/api/v1/student/analytics/trends/practice?days=${days}`,
+    { method: 'GET' }
+  );
+}
+
+export async function getPlannerTrends(
+  days: number = 7
+): Promise<PlannerTrendsResponse> {
+  return await apiRequest<PlannerTrendsResponse>(
+    `/api/v1/student/analytics/trends/planner?days=${days}`,
+    { method: 'GET' }
+  );
+}
+
+export async function getRetentionTrends(): Promise<RetentionTrendsResponse> {
+  return await apiRequest<RetentionTrendsResponse>(
+    '/api/v1/student/analytics/trends/retention',
+    { method: 'GET' }
+  );
+}
+
+export async function getDiagnosticMatrix(): Promise<DiagnosticMatrixResponse> {
+  return await apiRequest<DiagnosticMatrixResponse>(
+    '/api/v1/student/analytics/diagnostic-matrix',
+    { method: 'GET' }
+  );
+}
+
 
 
 

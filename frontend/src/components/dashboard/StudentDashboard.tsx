@@ -16,6 +16,7 @@ import {
   ArrowRight,
   RotateCcw,
   RefreshCw,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -32,6 +33,10 @@ import {
   getReviewQueue,
   submitReviewRating,
   getReviewStats,
+  getPracticeTrends,
+  getPlannerTrends,
+  getRetentionTrends,
+  getDiagnosticMatrix,
 } from '../../services/api';
 import {
   DashboardAnalytics,
@@ -49,11 +54,22 @@ import {
   ReviewQueueResponse,
   ReviewStatsResponse,
 } from '../../types/repetition';
+import {
+  DiagnosticMatrixResponse,
+  PlannerTrendsResponse,
+  PracticeTrendsResponse,
+  RetentionTrendsResponse,
+} from '../../types/analytics_trends';
 import { DailyStudyPlanCard } from '../planner/DailyStudyPlanCard';
 import { StudyGoalModal } from '../planner/StudyGoalModal';
 import { CurriculumRoadmapCard } from '../planner/CurriculumRoadmapCard';
 import { DailyReviewQueueCard } from '../review/DailyReviewQueueCard';
 import { FlashcardReviewModal } from '../review/FlashcardReviewModal';
+import { PracticeTrendChart } from '../analytics/PracticeTrendChart';
+import { PlannerAdherenceChart } from '../analytics/PlannerAdherenceChart';
+import { RetentionTrendsCard } from '../analytics/RetentionTrendsCard';
+import { DiagnosticMatrixCard } from '../analytics/DiagnosticMatrixCard';
+import { AnalyticsMethodologyModal } from '../analytics/AnalyticsMethodologyModal';
 
 interface StudentDashboardProps {
   onOpenOnboarding: () => void;
@@ -144,6 +160,46 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [activeReviewItem, setActiveReviewItem] = useState<ReviewItemSummary | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
 
+  // Milestone 8 Learning Analytics Trends & Diagnostics states
+  const [dashboardView, setDashboardView] = useState<'WORKSPACE' | 'TRENDS'>('WORKSPACE');
+  const [practiceTrends, setPracticeTrends] = useState<PracticeTrendsResponse | null>(null);
+  const [plannerTrends, setPlannerTrends] = useState<PlannerTrendsResponse | null>(null);
+  const [retentionTrends, setRetentionTrends] = useState<RetentionTrendsResponse | null>(null);
+  const [diagnosticMatrix, setDiagnosticMatrix] = useState<DiagnosticMatrixResponse | null>(null);
+  const [loadingTrends, setLoadingTrends] = useState<boolean>(false);
+  const [trendsError, setTrendsError] = useState<string | null>(null);
+  const [practiceDays, setPracticeDays] = useState<number>(7);
+  const [plannerDays, setPlannerDays] = useState<number>(7);
+  const [isMethodologyModalOpen, setIsMethodologyModalOpen] = useState<boolean>(false);
+
+  const fetchTrendsAndDiagnostics = useCallback(
+    async (pDays: number = 7, plDays: number = 7) => {
+      setLoadingTrends(true);
+      setTrendsError(null);
+      try {
+        const [pData, plData, rData, dData] = await Promise.all([
+          getPracticeTrends(pDays).catch(() => null),
+          getPlannerTrends(plDays).catch(() => null),
+          getRetentionTrends().catch(() => null),
+          getDiagnosticMatrix().catch(() => null),
+        ]);
+        if (pData) setPracticeTrends(pData);
+        if (plData) setPlannerTrends(plData);
+        if (rData) setRetentionTrends(rData);
+        if (dData) setDiagnosticMatrix(dData);
+      } catch {
+        setTrendsError('Failed to load learning analytics trends. Please try refreshing.');
+      } finally {
+        setLoadingTrends(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    fetchTrendsAndDiagnostics(practiceDays, plannerDays);
+  }, [fetchTrendsAndDiagnostics, practiceDays, plannerDays]);
+
   const fetchReviewData = useCallback(async () => {
     setLoadingReview(true);
     setReviewError(null);
@@ -177,6 +233,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
     await Promise.all([
       fetchReviewData(),
       fetchPlan(selectedDate, false),
+      fetchTrendsAndDiagnostics(practiceDays, plannerDays),
     ]);
   };
 
@@ -501,8 +558,84 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         </div>
       </div>
 
-      {/* Daily Study Plan Card (Approved Milestone 6 Dashboard Placement) */}
-      <DailyStudyPlanCard
+      {/* View Switcher: Daily Workspace vs Trends & Diagnostics */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4 pt-2">
+        <div
+          className="inline-flex rounded-2xl bg-slate-100 p-1.5 border border-slate-200"
+          role="tablist"
+          aria-label="Dashboard view tabs"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={dashboardView === 'WORKSPACE'}
+            onClick={() => setDashboardView('WORKSPACE')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              dashboardView === 'WORKSPACE'
+                ? 'bg-white text-indigo-700 shadow-sm border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Daily Workspace &amp; Tasks</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={dashboardView === 'TRENDS'}
+            onClick={() => {
+              setDashboardView('TRENDS');
+              fetchTrendsAndDiagnostics(practiceDays, plannerDays);
+            }}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              dashboardView === 'TRENDS'
+                ? 'bg-white text-indigo-700 shadow-sm border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span>Trends &amp; Diagnostics</span>
+          </button>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          {dashboardView === 'TRENDS' && (
+            <button
+              onClick={() => setIsMethodologyModalOpen(true)}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm"
+              title="View metric formulas and rules"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Methodology Guide</span>
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (dashboardView === 'TRENDS') {
+                fetchTrendsAndDiagnostics(practiceDays, plannerDays);
+              } else {
+                fetchPlan(selectedDate, false);
+                fetchReviewData();
+              }
+            }}
+            className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors"
+            title="Refresh current view"
+            aria-label="Refresh view data"
+          >
+            <RefreshCw
+              className={`w-4 h-4 ${
+                loadingTrends || loadingPlan || loadingReview ? 'animate-spin' : ''
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* VIEW 1: DAILY WORKSPACE & TASKS */}
+      {dashboardView === 'WORKSPACE' && (
+        <>
+          {/* Daily Study Plan Card (Approved Milestone 6 Dashboard Placement) */}
+          <DailyStudyPlanCard
         plan={plan}
         loading={loadingPlan}
         error={planError}
@@ -877,6 +1010,66 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           )}
         </div>
       </div>
+      </>
+      )}
+
+      {/* VIEW 2: TRENDS & DIAGNOSTICS (Milestone 8) */}
+      {dashboardView === 'TRENDS' && (
+        <div className="space-y-6">
+          {trendsError && (
+            <div
+              className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-900 shadow-sm flex items-center justify-between"
+              role="alert"
+            >
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                <span>{trendsError}</span>
+              </div>
+              <button
+                onClick={() => fetchTrendsAndDiagnostics(practiceDays, plannerDays)}
+                className="px-3 py-1 bg-white hover:bg-slate-50 border border-rose-300 rounded text-rose-700 font-bold text-xs transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Practice Volume & Accuracy Timeline Chart */}
+          <PracticeTrendChart
+            data={practiceTrends}
+            loading={loadingTrends}
+            selectedDays={practiceDays}
+            onDaysChange={(days) => setPracticeDays(days)}
+            onOpenMethodology={() => setIsMethodologyModalOpen(true)}
+          />
+
+          {/* Planned vs Completed Study Minutes Adherence Chart */}
+          <PlannerAdherenceChart
+            data={plannerTrends}
+            loading={loadingTrends}
+            selectedDays={plannerDays}
+            onDaysChange={(days) => setPlannerDays(days)}
+            onOpenMethodology={() => setIsMethodologyModalOpen(true)}
+          />
+
+          {/* Spaced Repetition Retention Streaks and Forecast Card */}
+          <RetentionTrendsCard
+            data={retentionTrends}
+            loading={loadingTrends}
+            onNavigateToReviewQueue={() => setDashboardView('WORKSPACE')}
+            onOpenMethodology={() => setIsMethodologyModalOpen(true)}
+          />
+
+          {/* Multi-Dimensional Topic Diagnostic Matrix Card */}
+          <DiagnosticMatrixCard
+            data={diagnosticMatrix}
+            loading={loadingTrends}
+            onStartPractice={onStartPractice}
+            onNavigateToLessons={onOpenLessons}
+            onOpenMethodology={() => setIsMethodologyModalOpen(true)}
+          />
+        </div>
+      )}
 
       {/* Privacy and Account Rights Card (DPDP Act Compliance) */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
@@ -936,6 +1129,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         }}
         onSubmitRating={handleSubmitReviewRating}
         onStartPractice={onStartPractice}
+      />
+
+      {/* Analytics Methodology Modal (Milestone 8) */}
+      <AnalyticsMethodologyModal
+        isOpen={isMethodologyModalOpen}
+        onClose={() => setIsMethodologyModalOpen(false)}
       />
     </div>
   );
