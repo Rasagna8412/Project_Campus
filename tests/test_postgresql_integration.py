@@ -24,10 +24,11 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 BACKEND_DIR = ROOT_DIR / "backend"
 
 # Configurable PostgreSQL test database URL
-POSTGRES_TEST_URL = os.environ.get(
-    "POSTGRES_TEST_DATABASE_URL",
-    "postgresql+asyncpg://campus_user:campus_dev_secret@127.0.0.1:5432/project_campus_test",
-)
+_env_pg_url = os.environ.get("POSTGRES_TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+if _env_pg_url and "postgres" in _env_pg_url:
+    POSTGRES_TEST_URL = _env_pg_url
+else:
+    POSTGRES_TEST_URL = "postgresql+asyncpg://campus_user:campus_dev_secret@127.0.0.1:5432/project_campus_test"
 
 
 def _check_live_postgres() -> bool:
