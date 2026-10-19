@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 import uuid
 import pytest
+import pytest_asyncio
 from sqlalchemy import select, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -131,7 +132,7 @@ def test_postgresql_alembic_ddl_generation_offline():
 # SECTION 2: Live PostgreSQL Integration Tests (Requires running PostgreSQL)
 # ==============================================================================
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture
 async def pg_engine():
     """Create a live PostgreSQL async engine for integration tests."""
     engine = create_async_engine(
@@ -144,13 +145,14 @@ async def pg_engine():
     await engine.dispose()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def pg_session(pg_engine):
     """Provide a transactional session for PostgreSQL integration tests."""
     session_factory = async_sessionmaker(bind=pg_engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:
         yield session
         await session.rollback()
+
 
 
 @requires_live_postgres
