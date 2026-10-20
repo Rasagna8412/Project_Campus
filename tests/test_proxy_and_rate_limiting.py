@@ -4,6 +4,8 @@ import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import settings
 from app.core.security import auth_rate_limiter
 from app.main import app
@@ -62,7 +64,9 @@ async def test_chained_forwarded_for_extracts_first_untrusted_ip():
 
 
 @pytest.mark.asyncio
-async def test_rate_limiting_client_isolation_between_ips():
+async def test_rate_limiting_client_isolation_between_ips(
+    client: AsyncClient, db_session: AsyncSession
+):
     """Verify that one client exhausting the registration rate limit does not block another client."""
     ip_a = f"198.51.100.{uuid.uuid4().int % 200 + 10}"
     ip_b = f"203.0.113.{uuid.uuid4().int % 200 + 10}"
@@ -71,49 +75,46 @@ async def test_rate_limiting_client_isolation_between_ips():
     auth_rate_limiter.reset(f"reg:{ip_a}")
     auth_rate_limiter.reset(f"reg:{ip_b}")
 
-    # Use trusted proxy transport (127.0.0.1) forwarding different client IPs
-    transport = ASGITransport(app=app, client=("127.0.0.1", 50000))
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # First create an existing user to provoke 400 Bad Request on duplicate attempts
-        existing_email = f"existing_{uuid.uuid4().hex[:6]}@example.com"
-        await client.post(
-            "/api/v1/auth/register",
-            json={"email": existing_email, "password": "Password123", "full_name": "Existing"},
-            headers={"X-Forwarded-For": "127.0.0.1"},
-        )
+    # First create an existing user to provoke 400 Bad Request on duplicate attempts
+    existing_email = f"existing_{uuid.uuid4().hex[:6]}@example.com"
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": existing_email, "password": "Password123", "full_name": "Existing"},
+        headers={"X-Forwarded-For": "127.0.0.1"},
+    )
 
-        # Client A makes 5 rapid duplicate attempts to trigger rate limiting
-        for i in range(settings.AUTH_RATE_LIMIT_MAX_ATTEMPTS):
-            res = await client.post(
-                "/api/v1/auth/register",
-                json={"email": existing_email, "password": "Password123", "full_name": "Student A"},
-                headers={"X-Forwarded-For": ip_a},
-            )
-            assert res.status_code == 400
-
-        # 6th attempt from Client A must be rate-limited (HTTP 429)
-        blocked_res = await client.post(
+    # Client A makes 5 rapid duplicate attempts to trigger rate limiting
+    for i in range(settings.AUTH_RATE_LIMIT_MAX_ATTEMPTS):
+        res = await client.post(
             "/api/v1/auth/register",
-            json={
-                "email": f"client_a_{uuid.uuid4().hex[:6]}@example.com",
-                "password": "PasswordA123",
-                "full_name": "Student A",
-            },
+            json={"email": existing_email, "password": "Password123", "full_name": "Student A"},
             headers={"X-Forwarded-For": ip_a},
         )
-        assert blocked_res.status_code == 429
-        assert "Too many registration attempts" in blocked_res.json()["detail"]
+        assert res.status_code == 400
 
-        # Client B connecting from a different IP must NOT be blocked!
-        client_b_res = await client.post(
-            "/api/v1/auth/register",
-            json={
-                "email": f"client_b_{uuid.uuid4().hex[:6]}@example.com",
-                "password": "PasswordB123",
-                "full_name": "Student B",
-            },
-            headers={"X-Forwarded-For": ip_b},
-        )
-        # Client B should register successfully (201 Created)
-        assert client_b_res.status_code == 201
-        assert client_b_res.json()["user"]["email"].startswith("client_b_")
+    # 6th attempt from Client A must be rate-limited (HTTP 429)
+    blocked_res = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": f"client_a_{uuid.uuid4().hex[:6]}@example.com",
+            "password": "PasswordA123",
+            "full_name": "Student A",
+        },
+        headers={"X-Forwarded-For": ip_a},
+    )
+    assert blocked_res.status_code == 429
+    assert "Too many registration attempts" in blocked_res.json()["detail"]
+
+    # Client B connecting from a different IP must NOT be blocked!
+    client_b_res = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": f"client_b_{uuid.uuid4().hex[:6]}@example.com",
+            "password": "PasswordB123",
+            "full_name": "Student B",
+        },
+        headers={"X-Forwarded-For": ip_b},
+    )
+    # Client B should register successfully (201 Created)
+    assert client_b_res.status_code == 201
+    assert client_b_res.json()["user"]["email"].startswith("client_b_")
