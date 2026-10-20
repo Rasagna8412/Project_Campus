@@ -44,9 +44,10 @@ class Settings(BaseSettings):
     AUTH_COOKIE_SECURE: bool = False
     AUTH_COOKIE_SAMESITE: str = "lax"
 
-    # Rate Limiting
+    # Rate Limiting & Proxy Headers
     AUTH_RATE_LIMIT_MAX_ATTEMPTS: int = 5
     AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 60
+    FORWARDED_ALLOW_IPS: str = "127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

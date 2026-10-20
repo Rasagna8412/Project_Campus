@@ -47,6 +47,7 @@ RUN groupadd -g 10001 appgroup && \
 COPY --chown=appuser:appgroup app /app/app
 COPY --chown=appuser:appgroup alembic /app/alembic
 COPY --chown=appuser:appgroup alembic.ini /app/alembic.ini
+COPY --chown=appuser:appgroup scripts /app/scripts
 
 # Switch to non-root runtime user
 USER appuser
@@ -60,4 +61,4 @@ EXPOSE 8000
 # Controlled ASGI startup command
 # NOTE: Database migrations must be run explicitly (e.g. `alembic upgrade head`)
 # and are not executed inside worker startup to prevent migration race conditions.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

@@ -10,6 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api.v1.api import api_router
 from app.core.config import settings
@@ -58,6 +59,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Trusted Reverse Proxy Header Middleware (populates client IP from X-Forwarded-For securely)
+app.add_middleware(
+    ProxyHeadersMiddleware,
+    trusted_hosts=settings.FORWARDED_ALLOW_IPS,
 )
 
 

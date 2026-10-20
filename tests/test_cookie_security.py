@@ -1,0 +1,78 @@
+"""Regression Tests for Production Cookie and Session Security."""
+
+import uuid
+import pytest
+from httpx import AsyncClient
+
+from app.core.config import Settings, settings
+
+
+def test_production_settings_enforces_secure_cookie():
+    """Verify that Settings validator enforces AUTH_COOKIE_SECURE=True in production."""
+    prod_settings = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY="a-very-long-and-secure-high-entropy-production-secret-key-12345",
+        DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/campus_prod",
+        AUTH_COOKIE_SECURE=False,  # Explicitly passed False
+    )
+    # The model validator must force it to True
+    assert prod_settings.AUTH_COOKIE_SECURE is True
+
+
+def test_production_settings_rejects_insecure_default_secret_key():
+    """Verify that Settings validator rejects default dev secret keys in production."""
+    with pytest.raises(ValueError, match="Production environment requires a high-entropy SECRET_KEY"):
+        Settings(
+            ENVIRONMENT="production",
+            SECRET_KEY="dev-insecure-secret-key-change-in-production-campus-2026-xyz",
+            DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/campus_prod",
+        )
+
+
+@pytest.mark.asyncio
+async def test_auth_cookie_attributes_on_register(client: AsyncClient, monkeypatch):
+    """Verify registration cookie contains HttpOnly and SameSite attributes."""
+    email = f"cookie_test_{uuid.uuid4().hex[:8]}@example.com"
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "Password12345", "full_name": "Cookie Tester"},
+    )
+    assert response.status_code == 201
+
+    # Inspect Set-Cookie header
+    set_cookie = response.headers.get("set-cookie")
+    assert set_cookie is not None
+    assert settings.AUTH_COOKIE_NAME in set_cookie
+    assert "httponly" in set_cookie.lower()
+    assert "samesite=lax" in set_cookie.lower()
+
+
+@pytest.mark.asyncio
+async def test_auth_cookie_secure_flag_when_enabled(client: AsyncClient, monkeypatch):
+    """Verify that Set-Cookie includes 'secure' flag when AUTH_COOKIE_SECURE is enabled."""
+    # Temporarily enable AUTH_COOKIE_SECURE
+    monkeypatch.setattr(settings, "AUTH_COOKIE_SECURE", True)
+
+    email = f"secure_cookie_{uuid.uuid4().hex[:8]}@example.com"
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "Password12345", "full_name": "Secure Tester"},
+    )
+    assert response.status_code == 201
+
+    set_cookie = response.headers.get("set-cookie")
+    assert set_cookie is not None
+    assert "secure" in set_cookie.lower()
+
+
+@pytest.mark.asyncio
+async def test_auth_cookie_cleared_on_logout(client: AsyncClient):
+    """Verify that logout instructs the browser to delete the authentication cookie."""
+    response = await client.post("/api/v1/auth/logout")
+    assert response.status_code == 200
+
+    set_cookie = response.headers.get("set-cookie")
+    assert set_cookie is not None
+    assert settings.AUTH_COOKIE_NAME in set_cookie
+    # Deleting cookie sets Max-Age=0 or past expires date
+    assert 'max-age=0' in set_cookie.lower() or 'expires=' in set_cookie.lower()
