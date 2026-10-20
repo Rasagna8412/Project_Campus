@@ -118,3 +118,114 @@ async def test_rate_limiting_client_isolation_between_ips(
     # Client B should register successfully (201 Created)
     assert client_b_res.status_code == 201
     assert client_b_res.json()["user"]["email"].startswith("client_b_")
+
+
+@pytest.mark.asyncio
+async def test_trusted_proxy_forwarded_proto_https_resolution():
+    """Verify that trusted reverse proxies correctly set request scheme to https from X-Forwarded-Proto."""
+    from fastapi import Request
+
+    @app.get("/api/v1/test-request-scheme-trusted", include_in_schema=False)
+    async def get_trusted_scheme(request: Request):
+        return {"scheme": request.url.scheme, "is_secure": request.url.is_secure}
+
+    # Simulate trusted proxy (127.0.0.1) forwarding X-Forwarded-Proto: https
+    trusted_transport = ASGITransport(app=app, client=("127.0.0.1", 50000))
+    async with AsyncClient(transport=trusted_transport, base_url="http://test") as client:
+        res = await client.get(
+            "/api/v1/test-request-scheme-trusted",
+            headers={"X-Forwarded-Proto": "https"},
+        )
+        assert res.status_code == 200
+        assert res.json()["scheme"] == "https"
+        assert res.json()["is_secure"] is True
+
+
+@pytest.mark.asyncio
+async def test_untrusted_client_cannot_spoof_forwarded_proto():
+    """Verify that an untrusted public client cannot spoof its request scheme to https."""
+    from fastapi import Request
+
+    @app.get("/api/v1/test-request-scheme-untrusted", include_in_schema=False)
+    async def get_untrusted_scheme(request: Request):
+        return {"scheme": request.url.scheme, "is_secure": request.url.is_secure}
+
+    # Simulate connection directly from untrusted public IP 198.51.100.25 (not in FORWARDED_ALLOW_IPS)
+    untrusted_transport = ASGITransport(app=app, client=("198.51.100.25", 45000))
+    async with AsyncClient(transport=untrusted_transport, base_url="http://test") as client:
+        res = await client.get(
+            "/api/v1/test-request-scheme-untrusted",
+            headers={"X-Forwarded-Proto": "https"},
+        )
+        assert res.status_code == 200
+        # The untrusted connection's actual scheme must remain http, NOT the spoofed https
+        assert res.json()["scheme"] == "http"
+        assert res.json()["is_secure"] is False
+
+
+@pytest.mark.asyncio
+async def test_trusted_proxy_discards_invalid_forwarded_proto():
+    """Verify that arbitrary or unsupported X-Forwarded-Proto values are discarded by proxy middleware."""
+    from fastapi import Request
+
+    @app.get("/api/v1/test-request-scheme-invalid", include_in_schema=False)
+    async def get_invalid_scheme(request: Request):
+        return {"scheme": request.url.scheme}
+
+    trusted_transport = ASGITransport(app=app, client=("127.0.0.1", 50000))
+    async with AsyncClient(transport=trusted_transport, base_url="http://test") as client:
+        res = await client.get(
+            "/api/v1/test-request-scheme-invalid",
+            headers={"X-Forwarded-Proto": "ftp"},
+        )
+        assert res.status_code == 200
+        assert res.json()["scheme"] == "http"
+
+
+def test_nginx_configuration_forwarded_proto_and_hsts():
+    """Verify frontend/nginx.conf correctly implements Option A upstream TLS trust boundary and HSTS."""
+    from pathlib import Path
+    nginx_conf_path = Path(__file__).resolve().parent.parent / "frontend" / "nginx.conf"
+    assert nginx_conf_path.exists(), "frontend/nginx.conf must exist"
+
+    content = nginx_conf_path.read_text(encoding="utf-8")
+
+    # 1. Verify geo block for trusted ingress
+    assert "geo $remote_addr $is_trusted_ingress" in content
+    assert "127.0.0.1 1;" in content
+    assert "10.0.0.0/8 1;" in content
+    assert "172.16.0.0/12 1;" in content
+    assert "192.168.0.0/16 1;" in content
+
+    # 2. Verify sanitization of X-Forwarded-Proto
+    assert "map $http_x_forwarded_proto $sanitized_proto" in content
+    assert '"https" https;' in content
+    assert '"http"  http;' in content
+
+    # 3. Verify protocol mapping based on trusted ingress
+    assert 'map "$is_trusted_ingress:$sanitized_proto" $forwarded_proto' in content
+    assert '"1:https" https;' in content
+    assert '"1:http"  http;' in content
+
+    # 4. Verify conditional HSTS header
+    assert "map $forwarded_proto $hsts_header" in content
+    assert '"https" "max-age=31536000";' in content
+    assert 'default "";' in content
+
+    # 5. Verify proxy headers in locations
+    assert "proxy_set_header X-Forwarded-Proto $forwarded_proto;" in content
+    assert "add_header Strict-Transport-Security $hsts_header always;" in content
+
+    # 6. Safety checks: HSTS must not includeSubDomains or preload prematurely
+    hsts_directives = [
+        line.strip()
+        for line in content.splitlines()
+        if not line.strip().startswith("#") and "Strict-Transport-Security" in line
+    ]
+    assert len(hsts_directives) > 0, "Strict-Transport-Security directive must be present"
+    for directive in hsts_directives:
+        assert "includesubdomains" not in directive.lower()
+        assert "preload" not in directive.lower()
+
+    # 7. Safety check: listen 80 must not unconditionally redirect all traffic
+    assert "return 301 https://" not in content
