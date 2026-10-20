@@ -72,5 +72,8 @@ def test_postgresql_async_engine_instantiation():
 @pytest.mark.asyncio
 async def test_database_connectivity_check_sqlite():
     """Verify check_database_connectivity runs successfully on active database."""
+    from app.core.database import engine
+    await engine.dispose()
     connected = await check_database_connectivity()
     assert connected is True
+

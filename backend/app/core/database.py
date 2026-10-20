@@ -62,9 +62,20 @@ async def check_database_connectivity() -> bool:
             await conn.execute(text("SELECT 1"))
         return True
     except Exception as exc:
+        # If the connection pool holds a connection from a previous/different event loop
+        # (common during multi-test execution or worker recycle), dispose pool and retry once.
+        if "different loop" in str(exc) or "Event loop is closed" in str(exc):
+            try:
+                await engine.dispose()
+                async with engine.connect() as conn:
+                    await conn.execute(text("SELECT 1"))
+                return True
+            except Exception:
+                pass
         try:
             masked_url = engine.url.render_as_string(hide_password=True)
             logger.error(f"Database connectivity check failed for {masked_url}: {exc}")
         except Exception:
             logger.error(f"Database connectivity check failed: {exc}")
         return False
+
