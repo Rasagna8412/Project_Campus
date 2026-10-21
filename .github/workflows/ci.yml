@@ -40,6 +40,10 @@ jobs:
       SECRET_KEY: ci-testing-high-entropy-secret-key-minimum-32-chars-2026
       DATABASE_URL: postgresql+asyncpg://campus_ci:campus_ci_secret@localhost:5432/project_campus_ci
       POSTGRES_TEST_DATABASE_URL: postgresql+asyncpg://campus_ci:campus_ci_secret@localhost:5432/project_campus_ci
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: campus_ci
+      PGPASSWORD: campus_ci_secret
       PYTHONPATH: backend
 
     steps:
@@ -96,6 +100,10 @@ jobs:
               sys.exit(1)
           print("All PostgreSQL integration tests executed and passed without skips.")
           '
+
+      - name: Run automated PostgreSQL backup and recovery drill
+        run: |
+          pytest tests/test_backup_restore_drill.py -v
 
       - name: Run full backend test suite
         run: |

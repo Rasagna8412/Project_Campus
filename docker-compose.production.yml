@@ -17,17 +17,35 @@
 #   and continuous point-in-time recovery WAL archiving (e.g. pgBackRest).
 #
 # BACKUP & RESTORE GUIDANCE:
-# 1. Backup (generates custom-format compressed backup):
-#    docker compose -f docker-compose.production.yml exec -T postgres \
-#      pg_dump -U ${POSTGRES_USER} -d ${POSTGRES_DB} -Fc > backup_$(date +%Y%m%d_%H%M%S).dump
+# 1. Backup:
+#    Use the automated, hardened backup script:
+#      ./scripts/backup_postgres.sh
+#    Or manual custom-format compressed backup:
+#      docker compose -f docker-compose.production.yml exec -T postgres \
+#        pg_dump -U ${POSTGRES_USER} -d ${POSTGRES_DB} -Fc > backup_$(date +%Y%m%d_%H%M%S).dump
 #
-# 2. Restore (CRITICAL SAFEGUARDS AGAINST RESTORING INTO WRONG DATABASE):
-#    a. ALWAYS confirm current database target and user identity BEFORE restoring:
+# 2. Restore (CRITICAL SAFEGUARDS AGAINST DATA LOSS):
+#    WARNING: In-place restoration into an active production database using '--clean' is unsafe
+#    and strictly discouraged. Dropping existing tables prior to verifying archive integrity
+#    risks catastrophic data loss if the backup file is incomplete or incompatible.
+#
+#    SAFE RECOVERY PROCEDURE (Isolated Staging & Target Verification):
+#    a. Always restore into a newly created, empty staging/disposable database first:
 #       docker compose -f docker-compose.production.yml exec -T postgres \
-#         psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "SELECT current_database(), current_user, inet_server_addr();"
-#    b. Execute restore into the verified target:
-#       docker compose -f docker-compose.production.yml exec -T postgres \
-#         pg_restore -U ${POSTGRES_USER} -d ${POSTGRES_DB} --clean --if-exists < backup.dump
+#         psql -U ${POSTGRES_USER} -d postgres -c "CREATE DATABASE campus_restore_staging;"
+#    b. Use the automated safe restore script (enforces target verification and post-checks):
+#       CONFIRM_DISPOSABLE_TARGET=yes \
+#       POSTGRES_USER=${POSTGRES_USER} \
+#       CONTAINER_NAME=campus_postgres_prod \
+#       ./scripts/restore_postgres.sh /path/to/backup.dump campus_restore_staging
+#    c. Manual restoration requires strict ownership and privilege decoupling:
+#       - ALWAYS verify target identity and confirm target is fresh and empty:
+#           docker compose -f docker-compose.production.yml exec -T postgres \
+#             psql -U ${POSTGRES_USER} -d campus_restore_staging -c "SELECT current_database(), current_user, inet_server_addr();"
+#       - Restore using --no-owner (-O) and --no-privileges (-x) into the empty database:
+#           docker compose -f docker-compose.production.yml exec -T postgres \
+#             pg_restore -U ${POSTGRES_USER} -d campus_restore_staging --no-owner --no-privileges < backup.dump
+#       - Verify Alembic revision, table counts, and query responsiveness prior to cutover.
 # ==============================================================================
 
 services:

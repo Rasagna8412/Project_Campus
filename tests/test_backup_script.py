@@ -277,3 +277,49 @@ def test_backup_signal_handling_int_cleans_tmp_and_exits_130(backup_env):
     # Verify NO .tmp files left
     tmp_files = list(backup_env["backup_dir"].glob("*.tmp"))
     assert len(tmp_files) == 0
+
+
+def test_backup_method_host_selection(backup_env):
+    """Verify that setting BACKUP_METHOD=host executes host pg_dump and pg_restore directly."""
+    mock_pg_dump = backup_env["bin_dir"] / "pg_dump"
+    mock_pg_dump.write_text("#!/bin/sh\nprintf 'MOCK_HOST_DUMP'\nexit 0\n", encoding="utf-8")
+    mock_pg_dump.chmod(0o755)
+
+    mock_pg_restore = backup_env["bin_dir"] / "pg_restore"
+    mock_pg_restore.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    mock_pg_restore.chmod(0o755)
+
+    env = os.environ.copy()
+    env["PATH"] = f"{backup_env['bin_dir']}{os.pathsep}{env.get('PATH', '')}"
+    env["BACKUP_DIR"] = str(backup_env["backup_dir"]).replace("\\", "/")
+    env["BACKUP_METHOD"] = "host"
+    env["POSTGRES_DB"] = "project_campus_test"
+    env["POSTGRES_USER"] = "campus_user"
+
+    proc = subprocess.run(
+        [backup_env["bash"], str(BACKUP_SCRIPT).replace("\\", "/")],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, f"Host backup failed: {proc.stderr}"
+    assert "Using host pg_dump execution" in proc.stdout
+    new_dumps = list(backup_env["backup_dir"].glob("campus_project_campus_test_*.dump"))
+    assert len(new_dumps) == 1
+
+
+def test_backup_same_second_collision_appends_pid(backup_env):
+    """Verify that if a dump with the current timestamp exists, _$$ PID is appended to prevent collision."""
+    create_mock_docker(backup_env["bin_dir"], "success")
+
+    current_time_str = time.strftime("%Y%m%d_%H%M%S")
+    collision_file = backup_env["backup_dir"] / f"campus_project_campus_prod_{current_time_str}.dump"
+    collision_file.write_text("PRE_EXISTING_DUMP", encoding="utf-8")
+
+    result = run_backup_script(backup_env, mock_behavior="success")
+    assert result.returncode == 0
+
+    dumps = list(backup_env["backup_dir"].glob("campus_project_campus_prod_*.dump"))
+    assert len(dumps) >= 2
+    assert collision_file.exists()
+    assert collision_file.read_text(encoding="utf-8") == "PRE_EXISTING_DUMP"
