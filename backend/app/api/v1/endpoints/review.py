@@ -169,7 +169,10 @@ async def submit_review_rating(
 
     # Step 3: Same-IST-day duplicate review prevention
     if item.last_reviewed_at is not None:
-        last_ist_date = item.last_reviewed_at.astimezone(PLANNER_TZ).date()
+        last_dt = item.last_reviewed_at
+        if last_dt.tzinfo is None:
+            last_dt = last_dt.replace(tzinfo=timezone.utc)
+        last_ist_date = last_dt.astimezone(PLANNER_TZ).date()
         if last_ist_date == today_ist:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

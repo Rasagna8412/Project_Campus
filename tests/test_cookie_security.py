@@ -19,6 +19,71 @@ def test_production_settings_enforces_secure_cookie():
     assert prod_settings.AUTH_COOKIE_SECURE is True
 
 
+def test_production_settings_enforces_debug_false_when_omitted():
+    """Verify that Settings validator enforces DEBUG=False in production when omitted."""
+    prod_settings = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY="a-very-long-and-secure-high-entropy-production-secret-key-12345",
+        DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/campus_prod",
+    )
+    assert prod_settings.DEBUG is False
+
+
+def test_production_settings_enforces_debug_false_when_explicitly_true():
+    """Verify that Settings validator enforces DEBUG=False in production even if DEBUG=True is supplied."""
+    prod_settings = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY="a-very-long-and-secure-high-entropy-production-secret-key-12345",
+        DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/campus_prod",
+        DEBUG=True,
+    )
+    assert prod_settings.DEBUG is False
+
+
+def test_development_settings_retains_debug_true():
+    """Verify that development environment retains DEBUG=True by default."""
+    dev_settings = Settings(ENVIRONMENT="development")
+    assert dev_settings.DEBUG is True
+
+
+def test_development_settings_retains_debug_false_when_explicitly_disabled():
+    """Verify that development environment allows explicitly disabling DEBUG."""
+    dev_settings = Settings(ENVIRONMENT="development", DEBUG=False)
+    assert dev_settings.DEBUG is False
+
+
+@pytest.mark.asyncio
+async def test_production_documentation_routes_disabled():
+    """Verify that in production (DEBUG=False), docs, redoc, and openapi routes are not exposed."""
+    from fastapi import FastAPI
+    from httpx import ASGITransport
+
+    prod_settings = Settings(
+        ENVIRONMENT="production",
+        SECRET_KEY="a-very-long-and-secure-high-entropy-production-secret-key-12345",
+        DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/campus_prod",
+        DEBUG=True,  # Will be forced False by validator
+    )
+    assert prod_settings.DEBUG is False
+
+    prod_app = FastAPI(
+        title=prod_settings.APP_NAME,
+        docs_url="/docs" if prod_settings.DEBUG else None,
+        redoc_url="/redoc" if prod_settings.DEBUG else None,
+        openapi_url="/openapi.json" if prod_settings.DEBUG else None,
+    )
+
+    transport = ASGITransport(app=prod_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        docs_res = await client.get("/docs")
+        redoc_res = await client.get("/redoc")
+        openapi_res = await client.get("/openapi.json")
+
+        assert docs_res.status_code == 404
+        assert redoc_res.status_code == 404
+        assert openapi_res.status_code == 404
+
+
 def test_production_settings_rejects_insecure_default_secret_key():
     """Verify that Settings validator rejects default dev secret keys in production."""
     with pytest.raises(ValueError, match="Production environment requires a high-entropy SECRET_KEY"):

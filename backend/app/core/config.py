@@ -82,6 +82,8 @@ class Settings(BaseSettings):
                 )
             if not self.AUTH_COOKIE_SECURE:
                 object.__setattr__(self, "AUTH_COOKIE_SECURE", True)
+            if self.DEBUG:
+                object.__setattr__(self, "DEBUG", False)
             if self.DB_POOL_SIZE < 1:
                 raise ValueError("DB_POOL_SIZE must be at least 1 in production.")
             if self.DB_MAX_OVERFLOW < 0:

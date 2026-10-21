@@ -27,6 +27,38 @@ POSTGRES_DB="${POSTGRES_DB:-project_campus_prod}"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 BACKUP_FILENAME="campus_${POSTGRES_DB}_${TIMESTAMP}.dump"
 BACKUP_FILEPATH="${BACKUP_DIR}/${BACKUP_FILENAME}"
+TEMP_BACKUP_FILEPATH="${BACKUP_FILEPATH}.tmp"
+
+# Cleanup handler ensuring incomplete/corrupted dumps are purged on normal error exit
+cleanup() {
+    local exit_code=$?
+    if [ -f "${TEMP_BACKUP_FILEPATH:-}" ]; then
+        echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Cleaning up incomplete temporary backup: ${TEMP_BACKUP_FILEPATH}" >&2
+        rm -f "${TEMP_BACKUP_FILEPATH}"
+    fi
+    exit "${exit_code}"
+}
+
+# Signal handlers ensuring proper exit codes (130 for INT, 143 for TERM) and cleanup
+trap_int() {
+    if [ -f "${TEMP_BACKUP_FILEPATH:-}" ]; then
+        echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Interrupted by SIGINT; cleaning up temporary backup: ${TEMP_BACKUP_FILEPATH}" >&2
+        rm -f "${TEMP_BACKUP_FILEPATH}"
+    fi
+    exit 130
+}
+
+trap_term() {
+    if [ -f "${TEMP_BACKUP_FILEPATH:-}" ]; then
+        echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Terminated by SIGTERM; cleaning up temporary backup: ${TEMP_BACKUP_FILEPATH}" >&2
+        rm -f "${TEMP_BACKUP_FILEPATH}"
+    fi
+    exit 143
+}
+
+trap cleanup EXIT
+trap trap_int INT
+trap trap_term TERM
 
 echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Starting database backup for '${POSTGRES_DB}'..."
 
@@ -37,27 +69,29 @@ chmod 0700 "${BACKUP_DIR}"
 # Restrict file creation mask so dumps are created with 0600 (owner read/write only)
 umask 077
 
-# Step 1: Execute consistent compressed dump from postgres container
-echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Executing pg_dump from container '${CONTAINER_NAME}'..."
+# Step 1: Execute consistent compressed dump to temporary file
+echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Executing pg_dump from container '${CONTAINER_NAME}' to temporary artifact..."
 if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-    docker exec "${CONTAINER_NAME}" pg_dump -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -Fc > "${BACKUP_FILEPATH}"
+    docker exec "${CONTAINER_NAME}" pg_dump -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -Fc > "${TEMP_BACKUP_FILEPATH}"
 else
     # Fallback to docker compose execution if container name differs
-    docker compose -f "${COMPOSE_FILE}" exec -T postgres pg_dump -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -Fc > "${BACKUP_FILEPATH}"
+    docker compose -f "${COMPOSE_FILE}" exec -T postgres pg_dump -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -Fc > "${TEMP_BACKUP_FILEPATH}"
 fi
 
-# Step 2: Enforce strict file permissions
-chmod 0600 "${BACKUP_FILEPATH}"
-FILESIZE=$(stat -c%s "${BACKUP_FILEPATH}" 2>/dev/null || stat -f%z "${BACKUP_FILEPATH}" 2>/dev/null || echo "unknown")
-echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Dump completed: ${BACKUP_FILENAME} (${FILESIZE} bytes)"
+# Step 2: Enforce strict file permissions on temporary artifact
+chmod 0600 "${TEMP_BACKUP_FILEPATH}"
 
-# Step 3: Integrity verification
+# Step 3: Integrity verification prior to promotion
 echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Verifying dump integrity using pg_restore --list..."
-if docker exec -i "${CONTAINER_NAME}" pg_restore --list < "${BACKUP_FILEPATH}" > /dev/null 2>&1; then
+if docker exec -i "${CONTAINER_NAME}" pg_restore --list < "${TEMP_BACKUP_FILEPATH}" > /dev/null 2>&1; then
     echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Verification PASSED: Archive header and TOC are intact."
+    # Step 3b: Atomically promote verified temporary file to final backup filename
+    mv "${TEMP_BACKUP_FILEPATH}" "${BACKUP_FILEPATH}"
+    chmod 0600 "${BACKUP_FILEPATH}"
+    FILESIZE=$(stat -c%s "${BACKUP_FILEPATH}" 2>/dev/null || stat -f%z "${BACKUP_FILEPATH}" 2>/dev/null || echo "unknown")
+    echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Dump successfully promoted: ${BACKUP_FILENAME} (${FILESIZE} bytes)"
 else
-    echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] ERROR: Backup verification FAILED! Removing corrupted file." >&2
-    rm -f "${BACKUP_FILEPATH}"
+    echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] ERROR: Backup verification FAILED! Incomplete dump will be purged." >&2
     exit 1
 fi
 

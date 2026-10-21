@@ -2,12 +2,13 @@
 
 import uuid
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, require_role
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.identity import StudentProfile, StudentProfileSubject, User
 from app.models.taxonomy import BoardCurriculum, GradeStage, Subject
@@ -236,6 +237,7 @@ async def update_student_profile(
     summary="Delete Student Account (DPDP Act Compliance)",
 )
 async def delete_student_account(
+    response: Response,
     current_user: User = Depends(require_role("STUDENT")),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -268,6 +270,12 @@ async def delete_student_account(
         # 6. Delete user identity (ORM cascades cleanly to student_profile, selected_subjects, and user_roles)
         await db.delete(current_user)
         await db.commit()
+        # 7. Invalidate active browser session by deleting auth cookie
+        response.delete_cookie(
+            key=settings.AUTH_COOKIE_NAME,
+            path="/",
+            samesite=settings.AUTH_COOKIE_SAMESITE,
+        )
     except Exception:
         await db.rollback()
         raise

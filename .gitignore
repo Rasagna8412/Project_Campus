@@ -49,6 +49,8 @@ dist-ssr/
 *.sqlite
 *.sqlite3
 *.db
+*.dump
+*.sql.gz
 local_data/
 
 # IDE & OS

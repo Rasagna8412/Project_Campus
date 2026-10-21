@@ -18,6 +18,7 @@ from app.models.content import LessonProgress, Lesson
 from app.models.identity import StudentProfile, StudentProfileSubject, User, UserRole
 from app.models.planner import StudyGoal, StudyTask
 from app.models.repetition import ReviewItem, ReviewLog, ReviewStatus
+from app.core.config import settings
 from app.models.taxonomy import BoardCurriculum, GradeStage, Subject, Topic
 
 
@@ -287,3 +288,61 @@ async def test_account_deletion_failure_atomicity_rolls_back(
         await db_session.execute(select(QuestionErrataReport).where(QuestionErrataReport.user_id == user_id))
     ).scalar_one_or_none()
     assert errata_after is not None
+
+
+@pytest.mark.asyncio
+async def test_authorized_account_deletion_clears_auth_cookie(
+    client: AsyncClient, db_session: AsyncSession
+):
+    """Verify that successful student account deletion instructs the browser to expire the auth cookie."""
+    email = f"cookie_del_{uuid.uuid4().hex[:8]}@example.com"
+    reg_resp = await client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "Password123!", "full_name": "Cookie Deletion User"},
+    )
+    assert reg_resp.status_code == 201
+    token = reg_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    del_resp = await client.delete("/api/v1/student/account", headers=headers)
+    assert del_resp.status_code == 200
+    assert del_resp.json()["status"] == "success"
+
+    set_cookie = del_resp.headers.get("set-cookie")
+    assert set_cookie is not None
+    assert settings.AUTH_COOKIE_NAME in set_cookie
+    assert "max-age=0" in set_cookie.lower() or "expires=" in set_cookie.lower()
+    assert "path=/" in set_cookie.lower()
+
+
+@pytest.mark.asyncio
+async def test_unauthorized_account_deletion_rejected(client: AsyncClient):
+    """Verify that account deletion without valid credentials is rejected without touching cookies."""
+    del_resp = await client.delete("/api/v1/student/account")
+    assert del_resp.status_code == 401
+    set_cookie = del_resp.headers.get("set-cookie")
+    if set_cookie:
+        assert "max-age=0" not in set_cookie.lower()
+
+
+@pytest.mark.asyncio
+async def test_account_deletion_failure_does_not_clear_auth_cookie(
+    client: AsyncClient, db_session: AsyncSession
+):
+    """Verify that if deletion fails before commit, the auth cookie is not expired."""
+    email = f"fail_del_{uuid.uuid4().hex[:8]}@example.com"
+    reg_resp = await client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "Password123!", "full_name": "Failed Deletion User"},
+    )
+    assert reg_resp.status_code == 201
+    token = reg_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with patch("sqlalchemy.ext.asyncio.AsyncSession.commit", side_effect=RuntimeError("Simulated Commit Failure")):
+        del_resp = await client.delete("/api/v1/student/account", headers=headers)
+        assert del_resp.status_code == 500
+
+    set_cookie = del_resp.headers.get("set-cookie")
+    if set_cookie:
+        assert "max-age=0" not in set_cookie.lower()

@@ -174,14 +174,14 @@ jobs:
             sleep 1
           done
 
-          # Start backend container
-          docker run -d --name backend_test --network campus_ci_net \
+          # Start backend container with network alias 'backend' for reverse proxy resolution
+          docker run -d --name backend_test --network campus_ci_net --network-alias backend \
             -e ENVIRONMENT=test \
             -e SECRET_KEY=ci-test-production-secret-key-minimum-32-chars-long \
             -e DATABASE_URL=postgresql+asyncpg://test_user:test_pass@pg_test:5432/test_db \
             project-campus-backend:test
 
-          # Poll for healthy status
+          # Poll for backend healthy status
           for i in {1..20}; do
             STATUS=$(docker inspect --format='{{.State.Health.Status}}' backend_test 2>/dev/null || echo "starting")
             echo "Backend container health check status: $STATUS"
@@ -192,12 +192,35 @@ jobs:
             sleep 2
           done
 
-          # Verify endpoint responds 200 OK
+          # Verify backend endpoint directly responds 200 OK
           docker exec backend_test curl -f http://localhost:8000/health
 
-          # Clean up disposable test containers and network
-          docker stop backend_test pg_test
-          docker rm backend_test pg_test
-          docker network rm campus_ci_net
-          echo "Container startup and health check verification completed cleanly."
+          # Start frontend container connected to the same CI network
+          docker run -d --name frontend_test --network campus_ci_net \
+            project-campus-frontend:test
 
+          # Poll for frontend healthy status
+          for i in {1..20}; do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' frontend_test 2>/dev/null || echo "starting")
+            echo "Frontend container health check status: $STATUS"
+            if [ "$STATUS" = "healthy" ]; then
+              echo "Frontend container reached healthy state successfully."
+              break
+            fi
+            sleep 2
+          done
+
+          # Verify frontend root serves SPA
+          docker exec frontend_test wget --quiet --tries=1 --spider http://localhost/
+
+          # Verify frontend reverse-proxy routes /health to backend:8000
+          docker exec frontend_test wget --quiet --tries=1 --spider http://localhost/health
+          echo "Container startup and health check verification completed cleanly for all services."
+
+      - name: Clean up disposable test containers and network
+        if: always()
+        run: |
+          docker stop frontend_test backend_test pg_test 2>/dev/null || true
+          docker rm -f frontend_test backend_test pg_test 2>/dev/null || true
+          docker network rm campus_ci_net 2>/dev/null || true
+          echo "Disposable test containers and network cleaned up successfully."
