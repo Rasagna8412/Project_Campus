@@ -211,10 +211,10 @@ jobs:
           done
 
           # Verify frontend root serves SPA
-          docker exec frontend_test wget --quiet --tries=1 --spider http://localhost/
+          docker exec frontend_test wget --quiet --tries=1 --spider http://127.0.0.1/
 
           # Verify frontend reverse-proxy routes /health to backend:8000
-          docker exec frontend_test wget --quiet --tries=1 --spider http://localhost/health
+          docker exec frontend_test wget --quiet --tries=1 --spider http://127.0.0.1/health
           echo "Container startup and health check verification completed cleanly for all services."
 
       - name: Clean up disposable test containers and network
