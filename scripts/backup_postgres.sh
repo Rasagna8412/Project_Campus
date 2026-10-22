@@ -84,7 +84,7 @@ elif [ "${BACKUP_METHOD}" = "compose" ] || { [ "${BACKUP_METHOD}" = "auto" ] && 
     docker compose -f "${COMPOSE_FILE}" exec -T postgres pg_dump -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -Fc > "${TEMP_BACKUP_FILEPATH}"
 elif [ "${BACKUP_METHOD}" = "host" ] || { [ "${BACKUP_METHOD}" = "auto" ] && command -v pg_dump >/dev/null 2>&1; }; then
     echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] Using host pg_dump execution..."
-    pg_dump -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -Fc > "${TEMP_BACKUP_FILEPATH}"
+    pg_dump -h "${PGHOST:-127.0.0.1}" -p "${PGPORT:-5432}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -Fc > "${TEMP_BACKUP_FILEPATH}"
 else
     echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] ERROR: No valid PostgreSQL backup execution method available (checked container, running compose, and host pg_dump)." >&2
     exit 1

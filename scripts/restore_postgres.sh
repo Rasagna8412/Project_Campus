@@ -30,7 +30,7 @@ CONFIRM_DISPOSABLE_TARGET="${CONFIRM_DISPOSABLE_TARGET:-no}"
 CONFIRM_DISPOSABLE_SERVER="${CONFIRM_DISPOSABLE_SERVER:-no}"
 EXPECTED_ALEMBIC_REVISION="${EXPECTED_ALEMBIC_REVISION:-0cbebed2ada2}"
 RESTORE_TARGET_TYPE="${RESTORE_TARGET_TYPE:-auto}"
-APPROVED_TEST_HOSTS="${APPROVED_TEST_HOSTS:-localhost 127.0.0.1 postgres campus_postgres_test}"
+APPROVED_TEST_HOSTS="${APPROVED_TEST_HOSTS:-localhost 127.0.0.1 postgres campus_postgres_test 172.* 10.* 192.168.*}"
 APPROVED_TEST_CONTAINERS="${APPROVED_TEST_CONTAINERS:-campus_postgres_test postgres}"
 
 log() {
@@ -185,7 +185,7 @@ run_sql() {
     if [ "${TARGET_MODE}" = "container" ] && command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
         docker exec "${CONTAINER_NAME}" psql -U "${POSTGRES_USER}" -d "${db}" -t -A -c "${query}"
     elif [ "${TARGET_MODE}" = "host" ] && command -v psql >/dev/null 2>&1; then
-        psql -U "${POSTGRES_USER}" -d "${db}" -t -A -c "${query}"
+        psql -h "${PGHOST:-127.0.0.1}" -p "${PGPORT:-5432}" -U "${POSTGRES_USER}" -d "${db}" -t -A -c "${query}"
     else
         error_exit "Neither running container '${CONTAINER_NAME}' nor host psql is available to query database."
     fi
@@ -200,15 +200,18 @@ fi
 
 if [ "${TARGET_MODE}" = "host" ]; then
     case "${SERVER_ENDPOINT}" in
-        127.0.0.1|::1|local_socket)
+        127.0.0.1|::1|local_socket|10.*|172.1[6-9].*|172.2[0-9].*|172.3[0-1].*|192.168.*)
+            # Approved loopback and private container/bridge network addresses
             ;;
         *)
             ENDPOINT_APPROVED=0
             for ah in ${APPROVED_TEST_HOSTS}; do
-                if [ "${SERVER_ENDPOINT}" = "${ah}" ]; then
-                    ENDPOINT_APPROVED=1
-                    break
-                fi
+                case "${SERVER_ENDPOINT}" in
+                    ${ah})
+                        ENDPOINT_APPROVED=1
+                        break
+                        ;;
+                esac
             done
             if [ "${ENDPOINT_APPROVED}" -ne 1 ]; then
                 error_exit "Safety rejection: Connected server endpoint '${SERVER_ENDPOINT}' is not in approved test hosts (${APPROVED_TEST_HOSTS})."
@@ -239,7 +242,7 @@ RESTORE_STATUS=0
 if [ "${TARGET_MODE}" = "container" ] && command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
     docker exec -i "${CONTAINER_NAME}" pg_restore -U "${POSTGRES_USER}" -d "${TARGET_DB}" --no-owner --no-privileges --single-transaction < "${BACKUP_FILE}" || RESTORE_STATUS=$?
 elif [ "${TARGET_MODE}" = "host" ] && command -v pg_restore >/dev/null 2>&1; then
-    pg_restore -U "${POSTGRES_USER}" -d "${TARGET_DB}" --no-owner --no-privileges --single-transaction "${BACKUP_FILE}" || RESTORE_STATUS=$?
+    pg_restore -h "${PGHOST:-127.0.0.1}" -p "${PGPORT:-5432}" -U "${POSTGRES_USER}" -d "${TARGET_DB}" --no-owner --no-privileges --single-transaction "${BACKUP_FILE}" || RESTORE_STATUS=$?
 else
     error_exit "pg_restore execution failed: tool unavailable."
 fi

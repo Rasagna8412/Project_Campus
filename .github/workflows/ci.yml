@@ -103,7 +103,7 @@ jobs:
 
       - name: Run automated PostgreSQL backup and recovery drill
         run: |
-          pytest tests/test_backup_restore_drill.py -v
+          pytest tests/test_backup_restore_drill.py -v --tb=short
 
       - name: Run full backend test suite
         run: |

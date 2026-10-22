@@ -404,7 +404,7 @@ async def test_end_to_end_backup_and_restore_recovery_drill():
         restore_env["PGPORT"] = conn_info["port"]
         restore_env["CONFIRM_DISPOSABLE_TARGET"] = "yes"
         restore_env["CONFIRM_DISPOSABLE_SERVER"] = "yes"
-        restore_env["APPROVED_TEST_HOSTS"] = f"localhost 127.0.0.1 postgres {conn_info['host']}"
+        restore_env["APPROVED_TEST_HOSTS"] = f"localhost 127.0.0.1 postgres {conn_info['host']} 172.* 10.* 192.168.*"
         restore_env["EXPECTED_ALEMBIC_REVISION"] = "0cbebed2ada2"
 
         r_res = subprocess.run(

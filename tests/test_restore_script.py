@@ -51,6 +51,7 @@ def create_mock_docker(
     alembic_rev: str = "0cbebed2ada2",
     tables_count: int = 6,
     connectivity: bool = True,
+    server_ip: str = "127.0.0.1",
 ):
     """Create a mock docker executable simulating psql, pg_restore, and container interactions."""
     mock_docker = bin_dir / "docker"
@@ -91,7 +92,7 @@ if [ "$1" = "exec" ]; then
             # Simulate SQL query responses
             case "$*" in
                 *"inet_server_addr()"*)
-                    echo "127.0.0.1"
+                    echo "{server_ip}"
                     exit 0
                     ;;
                 *"current_database()"*)
@@ -446,3 +447,39 @@ exit 0
     result = run_restore_script(restore_env)
     assert result.returncode == 143
     assert "Terminated by SIGTERM" in result.stderr
+
+
+def test_restore_accepts_container_bridge_endpoint(restore_env):
+    """Verify that private container bridge endpoints (e.g. 172.18.0.2) are accepted."""
+    create_mock_docker(restore_env["bin_dir"], server_ip="172.18.0.2")
+    result = run_restore_script(restore_env)
+    assert result.returncode == 0, f"Restore failed: {result.stderr}"
+    assert "Post-restore verification PASSED completely" in result.stdout
+
+
+def test_restore_rejects_unapproved_public_server_endpoint(restore_env):
+    """Verify that unapproved public server endpoints are rejected even in host mode."""
+    mock_docker = restore_env["bin_dir"] / "docker"
+    if mock_docker.exists():
+        mock_docker.unlink()
+
+    mock_pg_restore = restore_env["bin_dir"] / "pg_restore"
+    mock_pg_restore.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    mock_pg_restore.chmod(0o755)
+
+    mock_psql = restore_env["bin_dir"] / "psql"
+    mock_psql.write_text("""#!/bin/sh
+case "$*" in
+    *"inet_server_addr()"*) echo "203.0.113.195"; exit 0 ;;
+    *) echo "1"; exit 0 ;;
+esac
+""", encoding="utf-8")
+    mock_psql.chmod(0o755)
+
+    result = run_restore_script(
+        restore_env,
+        container_name="",
+        env_overrides={"PGHOST": "127.0.0.1"},
+    )
+    assert result.returncode != 0
+    assert "is not in approved test hosts" in result.stderr
