@@ -300,6 +300,7 @@ async def test_end_to_end_backup_and_restore_recovery_drill():
             key = QuestionAnswerKey(
                 question_id=question.id,
                 correct_options=["A"],
+                explanation_latex=r"By Gauss's Law, the total electric flux is \Phi = \frac{q}{\varepsilon_0}.",
             )
             session.add(key)
 
@@ -332,6 +333,7 @@ async def test_end_to_end_backup_and_restore_recovery_drill():
                 status=ReviewStatus.LEARNING.value,
                 ease_factor=2.5,
                 interval_days=1,
+                due_date=date.today(),
                 repetition_count=1,
             )
             session.add(item)
