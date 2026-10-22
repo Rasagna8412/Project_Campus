@@ -5,7 +5,8 @@
 **Target Repository:** `Rasagna8412/Project_Campus`  
 **Target Branch:** `master`  
 **Baseline Git HEAD:** `ac0f70842f0d28ea7098ab9d235c3bb286714ecb`  
-**Verified CI Workflow Run:** `39734154543` (100% Passed across 3 Jobs: Frontend, Container, Backend & PostgreSQL 15, 0 Annotations)  
+**Phase C Release Commit:** `0a68cfcda7caad8931497275b3aa9db011972111`  
+**Verified CI Workflow Run:** `39737962952` (100% Passed across 3 Jobs: Frontend, Container, Backend & PostgreSQL 15, 0 Annotations)  
 **Backend Test Baseline:** 240 tests (234 passed locally, 6 conditionally skipped due to local PostgreSQL daemon; 240/240 passed in remote CI)  
 **Frontend Test Baseline:** 48 passed across 11 test suites (Vitest / Testing Library)  
 **Alembic Schema Head:** `0cbebed2ada2` (Linear Chain of 8 Revisions, 23 Domain Tables)  
