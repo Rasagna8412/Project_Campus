@@ -103,7 +103,25 @@ jobs:
 
       - name: Run automated PostgreSQL backup and recovery drill
         run: |
-          pytest tests/test_backup_restore_drill.py -v --tb=short
+          pytest tests/test_backup_restore_drill.py -v --tb=short --junitxml=drill_report.xml || {
+            python -c '
+          import xml.etree.ElementTree as ET
+          try:
+              tree = ET.parse("drill_report.xml")
+              for tc in tree.iter("testcase"):
+                  for failure in tc.iter("failure"):
+                      first_line = failure.text.strip().split("\n")[-1]
+                      print(f"::error title=Drill Failure::{first_line}")
+                      print(failure.text)
+                  for error in tc.iter("error"):
+                      first_line = error.text.strip().split("\n")[-1]
+                      print(f"::error title=Drill Error::{first_line}")
+                      print(error.text)
+          except Exception as exc:
+              print(f"::error title=Report Parse Error::{exc}")
+          '
+            exit 1
+          }
 
       - name: Run full backend test suite
         run: |
