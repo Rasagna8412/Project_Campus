@@ -5,7 +5,8 @@
 **Target Repository:** `Rasagna8412/Project_Campus`  
 **Target Branch:** `master`  
 **Baseline Git HEAD:** `444c96c4d7ec6693b4aebda3ddca0c088febebb9`  
-**Latest Verified CI Run:** `39730066425` (100% Passed across 3 Jobs, 0 Annotations)  
+**Release Commit:** `0ff30625ef90889155e561ab1da99d436e36a9c9`  
+**Verified CI Workflow Run:** `39733850113` (100% Passed across 3 Jobs, 0 Annotations)  
 **Backend Test Baseline:** 240 tests (234 passed locally, 6 conditionally skipped; 240/240 passed in remote CI)  
 **Frontend Test Baseline:** 48 passed across 11 suites (Vitest / Testing Library)  
 **Alembic Schema Head:** `0cbebed2ada2` (Linear Chain of 8 Revisions, 23 Domain Tables)  
