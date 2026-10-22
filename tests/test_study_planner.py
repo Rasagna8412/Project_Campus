@@ -1273,6 +1273,87 @@ async def test_reschedule_task_within_capacity_updates_display_order(
 
 
 @pytest.mark.asyncio
+async def test_concurrent_reschedule_task_capacity_and_display_order_safety(
+    client: AsyncClient,
+    planner_student_token: str,
+    db_session: AsyncSession,
+):
+    """Verify that concurrent reschedule requests allocate unique display orders and maintain 4-task ceiling."""
+    headers = {"Authorization": f"Bearer {planner_student_token}"}
+    me_res = await client.get("/api/v1/auth/me", headers=headers)
+    user_id = uuid.UUID(me_res.json()["id"])
+
+    date_src = date.today() + timedelta(days=40)
+    date_dst = date.today() + timedelta(days=41)
+
+    # Seed 2 tasks on date_src
+    task_1 = StudyTask(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        scheduled_date=date_src,
+        task_type="STUDY_LESSON",
+        title="Source Task 1",
+        estimated_minutes=15,
+        status="PENDING",
+        is_completed=False,
+        display_order=1,
+    )
+    task_2 = StudyTask(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        scheduled_date=date_src,
+        task_type="STUDY_LESSON",
+        title="Source Task 2",
+        estimated_minutes=15,
+        status="PENDING",
+        is_completed=False,
+        display_order=2,
+    )
+    db_session.add(task_1)
+    db_session.add(task_2)
+
+    # Seed 2 tasks on date_dst
+    for i in range(1, 3):
+        t_dst = StudyTask(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            scheduled_date=date_dst,
+            task_type="STUDY_LESSON",
+            title=f"Dest Task {i}",
+            estimated_minutes=15,
+            status="PENDING",
+            is_completed=False,
+            display_order=i,
+        )
+        db_session.add(t_dst)
+    await db_session.commit()
+
+    # Fire concurrent reschedule requests for task_1 and task_2 to date_dst
+    res_1, res_2 = await asyncio.gather(
+        client.patch(
+            f"/api/v1/planner/tasks/{task_1.id}/reschedule",
+            headers=headers,
+            json={"new_date": date_dst.isoformat()},
+        ),
+        client.patch(
+            f"/api/v1/planner/tasks/{task_2.id}/reschedule",
+            headers=headers,
+            json={"new_date": date_dst.isoformat()},
+        ),
+    )
+
+    # Both must succeed without 500 error or display_order collision
+    assert res_1.status_code == 200
+    assert res_2.status_code == 200
+
+    order_1 = res_1.json()["display_order"]
+    order_2 = res_2.json()["display_order"]
+
+    assert order_1 != order_2
+    assert {order_1, order_2} == {3, 4}
+
+
+@pytest.mark.asyncio
 async def test_database_level_unique_constraint_enforcement(
     db_session: AsyncSession,
 ):

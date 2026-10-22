@@ -148,6 +148,9 @@ export const FlashcardReviewModal: React.FC<FlashcardReviewModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="review-modal-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !submitting) onClose();
+      }}
     >
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header Bar */}

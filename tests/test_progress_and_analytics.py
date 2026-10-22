@@ -367,6 +367,32 @@ async def test_recommendations_priority_ordering(
     assert first_rec["action_label"] == "Resume Lesson"
 
 
+@pytest.mark.asyncio
+async def test_recommendations_empty_enrollment_does_not_leak_unrelated_curricula(
+    client: AsyncClient,
+):
+    """Verify that a student without enrolled subjects is never recommended arbitrary global lessons."""
+    reg = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": f"empty_enroll_{uuid.uuid4().hex[:8]}@example.com",
+            "password": "SecurePassword123!",
+            "full_name": "Empty Enrollment Student",
+        },
+    )
+    assert reg.status_code == 201
+    token = reg.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    recs_resp = await client.get("/api/v1/student/analytics/recommendations", headers=headers)
+    assert recs_resp.status_code == 200
+    recs = recs_resp.json()
+    # Student has no progress, no attempts, and NO enrolled subjects:
+    # Must NOT recommend any NEXT_LESSON from global curricula
+    next_lesson_recs = [r for r in recs if r["type"] == "NEXT_LESSON"]
+    assert len(next_lesson_recs) == 0
+
+
 # ==============================================================================
 # 5. PRIVACY & DPDP ACT CASCADE ERASURE TESTS
 # ==============================================================================

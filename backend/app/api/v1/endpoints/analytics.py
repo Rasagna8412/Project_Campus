@@ -410,8 +410,8 @@ async def get_learning_recommendations(
             )
         )
 
-    # Priority 4: Find next unstarted published lesson in enrolled subjects
-    # First get student's enrolled subjects
+    # Priority 4: Find next unstarted published lesson strictly within enrolled subjects (H-3, L-1)
+    # If the student has no enrolled subjects, do not recommend arbitrary global lessons
     prof_stmt = (
         select(StudentProfile)
         .where(StudentProfile.user_id == current_user.id)
@@ -424,55 +424,53 @@ async def get_learning_recommendations(
         else []
     )
 
-    # Get set of all lesson IDs the student has already started or completed
-    done_stmt = select(LessonProgress.lesson_id).where(
-        LessonProgress.user_id == current_user.id
-    )
-    done_lesson_ids = set((await db.execute(done_stmt)).scalars().all())
-
-    # Query next published lesson in enrolled subjects (or any published lesson if none enrolled)
-    unstarted_lesson_query = (
-        select(Lesson)
-        .join(Topic, Lesson.topic_id == Topic.id)
-        .join(Chapter, Topic.chapter_id == Chapter.id)
-        .where(Lesson.status == ContentStatus.PUBLISHED.value)
-        .options(
-            selectinload(Lesson.topic)
-            .selectinload(Topic.chapter)
-            .selectinload(Chapter.subject)
-        )
-    )
     if enrolled_subject_ids:
-        unstarted_lesson_query = unstarted_lesson_query.where(
-            Chapter.subject_id.in_(enrolled_subject_ids)
+        # Get set of all lesson IDs the student has already started or completed
+        done_stmt = select(LessonProgress.lesson_id).where(
+            LessonProgress.user_id == current_user.id
         )
+        done_lesson_ids = set((await db.execute(done_stmt)).scalars().all())
 
-    unstarted_lesson_query = unstarted_lesson_query.order_by(
-        Chapter.chapter_number.asc(),
-        Topic.display_order.asc(),
-        Lesson.display_order.asc(),
-    )
-    all_lessons = (await db.execute(unstarted_lesson_query)).scalars().all()
-
-    for lsn in all_lessons:
-        if lsn.id not in done_lesson_ids:
-            subj_name = (
-                lsn.topic.chapter.subject.name
-                if lsn.topic and lsn.topic.chapter and lsn.topic.chapter.subject
-                else None
+        unstarted_lesson_query = (
+            select(Lesson)
+            .join(Topic, Lesson.topic_id == Topic.id)
+            .join(Chapter, Topic.chapter_id == Chapter.id)
+            .where(
+                Lesson.status == ContentStatus.PUBLISHED.value,
+                Chapter.subject_id.in_(enrolled_subject_ids),
             )
-            recommendations.append(
-                LearningRecommendationResponse(
-                    type="NEXT_LESSON",
-                    priority=4,
-                    title="Start Next Lesson",
-                    reason="Progress through your curriculum by starting the next structured lesson.",
-                    target_id=lsn.id,
-                    target_title=lsn.title,
-                    subject_name=subj_name,
-                    action_label="Start Lesson",
+            .options(
+                selectinload(Lesson.topic)
+                .selectinload(Topic.chapter)
+                .selectinload(Chapter.subject)
+            )
+            .order_by(
+                Chapter.chapter_number.asc(),
+                Topic.display_order.asc(),
+                Lesson.display_order.asc(),
+            )
+        )
+        all_lessons = (await db.execute(unstarted_lesson_query)).scalars().all()
+
+        for lsn in all_lessons:
+            if lsn.id not in done_lesson_ids:
+                subj_name = (
+                    lsn.topic.chapter.subject.name
+                    if lsn.topic and lsn.topic.chapter and lsn.topic.chapter.subject
+                    else None
                 )
-            )
-            break
+                recommendations.append(
+                    LearningRecommendationResponse(
+                        type="NEXT_LESSON",
+                        priority=4,
+                        title="Start Next Lesson",
+                        reason="Progress through your curriculum by starting the next structured lesson.",
+                        target_id=lsn.id,
+                        target_title=lsn.title,
+                        subject_name=subj_name,
+                        action_label="Start Lesson",
+                    )
+                )
+                break
 
     return recommendations[:4]

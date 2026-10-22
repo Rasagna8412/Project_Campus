@@ -798,7 +798,10 @@ async def reschedule_task(
     current_user: User = Depends(require_role("STUDENT")),
     db: AsyncSession = Depends(get_db),
 ) -> StudyTaskResponse:
-    """Move an uncompleted task to a future date. Rejects past dates and completed tasks."""
+    """Move an uncompleted task to a future date. Rejects past dates and completed tasks.
+
+    Serialized across worker processes via row-level User locking and student-date mutex.
+    """
     today = get_planner_date()
     if payload.new_date < today:
         raise HTTPException(
@@ -806,50 +809,71 @@ async def reschedule_task(
             detail="Rescheduled date cannot be in the past.",
         )
 
-    stmt = select(StudyTask).where(
-        StudyTask.id == task_id,
-        StudyTask.user_id == current_user.id,
-    )
-    task = (await db.execute(stmt)).scalar_one_or_none()
+    lock = await _get_student_date_lock(current_user.id, payload.new_date)
+    async with lock:
+        await _acquire_user_lock(current_user.id, db)
 
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Study task not found.",
+        stmt = select(StudyTask).where(
+            StudyTask.id == task_id,
+            StudyTask.user_id == current_user.id,
         )
+        task = (await db.execute(stmt)).scalar_one_or_none()
 
-    if task.is_completed:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Completed study tasks cannot be rescheduled.",
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Study task not found.",
+            )
+
+        if task.is_completed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Completed study tasks cannot be rescheduled.",
+            )
+
+        # Enforce maximum 4 tasks per day ceiling on the target new_date
+        count_stmt = select(func.count(StudyTask.id)).where(
+            StudyTask.user_id == current_user.id,
+            StudyTask.scheduled_date == payload.new_date,
+            StudyTask.id != task_id,
         )
+        target_count = (await db.execute(count_stmt)).scalar() or 0
+        if target_count >= 4:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Target date already has the maximum limit of 4 study tasks.",
+            )
 
-    # Enforce maximum 4 tasks per day ceiling on the target new_date
-    count_stmt = select(func.count(StudyTask.id)).where(
-        StudyTask.user_id == current_user.id,
-        StudyTask.scheduled_date == payload.new_date,
-        StudyTask.id != task_id,
-    )
-    target_count = (await db.execute(count_stmt)).scalar() or 0
-    if target_count >= 4:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Target date already has the maximum limit of 4 study tasks.",
+        # Calculate next available display_order between 1 and 4 on target date
+        orders_stmt = select(StudyTask.display_order).where(
+            StudyTask.user_id == current_user.id,
+            StudyTask.scheduled_date == payload.new_date,
+            StudyTask.id != task_id,
         )
+        existing_orders = set((await db.execute(orders_stmt)).scalars().all())
+        assigned_order = None
+        for candidate in range(1, 5):
+            if candidate not in existing_orders:
+                assigned_order = candidate
+                break
+        if assigned_order is None:
+            assigned_order = max(existing_orders, default=0) + 1
 
-    # Calculate next available display_order on the target new_date
-    max_order_stmt = select(func.coalesce(func.max(StudyTask.display_order), 0)).where(
-        StudyTask.user_id == current_user.id,
-        StudyTask.scheduled_date == payload.new_date,
-        StudyTask.id != task_id,
-    )
-    max_order = (await db.execute(max_order_stmt)).scalar() or 0
-    task.display_order = max_order + 1
-    task.scheduled_date = payload.new_date
-    task.status = TaskStatus.RESCHEDULED.value
-    await db.commit()
-    await db.refresh(task)
-    return StudyTaskResponse.model_validate(task)
+        task.display_order = assigned_order
+        task.scheduled_date = payload.new_date
+        task.status = TaskStatus.RESCHEDULED.value
+
+        try:
+            await db.commit()
+            await db.refresh(task)
+        except IntegrityError:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A concurrent update affected this schedule. Please retry.",
+            )
+
+        return StudyTaskResponse.model_validate(task)
 
 
 @router.get(
