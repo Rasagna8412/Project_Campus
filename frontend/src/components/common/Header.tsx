@@ -11,6 +11,7 @@ import {
   BookOpen,
   Compass,
   LogOut,
+  LayoutDashboard,
 } from 'lucide-react';
 import { HealthResponse, ConnectionState } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
@@ -65,7 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center space-x-2">
               <span className="text-xl font-bold tracking-tight text-slate-900">Project Campus</span>
               <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                Milestone 3 Active
+                Academic Edition • Pilot Ready
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">Academic Learning & Examination Platform</p>
@@ -127,6 +128,17 @@ export const Header: React.FC<HeaderProps> = ({
                   </p>
                 </div>
               </div>
+
+              {onOpenHome && (
+                <button
+                  onClick={onOpenHome}
+                  className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                  title="Student Dashboard"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Dashboard</span>
+                </button>
+              )}
 
               {onOpenLessons && (
                 <button

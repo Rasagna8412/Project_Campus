@@ -25,7 +25,7 @@ describe('Project Campus App Component', () => {
 
     const brandElements = screen.getAllByText('Project Campus');
     expect(brandElements.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Milestone 3 Active')).toBeInTheDocument();
+    expect(screen.getByText(/Academic Edition • Pilot Ready/i)).toBeInTheDocument();
     expect(screen.getByText(/Foundational Curriculum/i)).toBeInTheDocument();
   });
 
