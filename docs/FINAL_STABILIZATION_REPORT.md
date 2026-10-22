@@ -5,7 +5,8 @@
 **Target Repository:** `Rasagna8412/Project_Campus`  
 **Target Branch:** `master`  
 **Baseline Git HEAD:** `55e46078dbb4d83d1c3a6e9bb24e6c98616238b1`  
-**Verified CI Workflow Run:** `39725550550` (100% Passed across 3 Jobs, 0 Annotations)  
+**Final Release Gate Commit:** `8df1d7b7e99ae8dbb68ef833e9e60424278d9bc9`  
+**Verified CI Workflow Runs:** `39725550550` and `39727552813` (100% Passed across 3 Jobs, 0 Annotations)  
 **Alembic Schema Head:** `0cbebed2ada2` (Linear Chain of 8 Revisions, 23 Domain Tables)  
 **Date of Release Audit:** October 2026  
 
@@ -126,13 +127,14 @@ Results:
 ```
 
 ### 3.2. Remote Continuous Integration (CI) Verification
-The complete test matrix and recovery drill were executed in GitHub Actions on a clean Ubuntu 24.04 runner:
+The complete test matrix, PostgreSQL integration suite, and live recovery drill were executed in GitHub Actions on clean `ubuntu-24.04` runners across two consecutive zero-failure runs:
+* **Baseline CI Run:** `39725550550` (Commit `55e4607`) — **SUCCESS** (3 jobs green, 0 annotations)
+* **Release Gate CI Run:** `39727552813` (Commit `8df1d7b`) — **SUCCESS** (3 jobs green, 0 annotations)
 
 ```
-Workflow Run ID: 39725550550
 Workflow File: .github/workflows/ci.yml
-Trigger Commit: 55e46078dbb4d83d1c3a6e9bb24e6c98616238b1
-Run Conclusion: SUCCESS (0 errors, 0 warnings, 0 annotations)
+Verified Runs: 39725550550 (baseline) & 39727552813 (release gate)
+Run Conclusion: SUCCESS across both runs (0 errors, 0 warnings, 0 annotations)
 
 Job 1: Backend & PostgreSQL 15 Integration
   - Dedicated PostgreSQL 15 service container: Healthy
