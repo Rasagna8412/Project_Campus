@@ -35,9 +35,11 @@
 #         psql -U ${POSTGRES_USER} -d postgres -c "CREATE DATABASE campus_restore_staging;"
 #    b. Use the automated safe restore script (enforces target verification and post-checks):
 #       CONFIRM_DISPOSABLE_TARGET=yes \
+#       CONFIRM_DISPOSABLE_SERVER=yes \
 #       POSTGRES_USER=${POSTGRES_USER} \
-#       CONTAINER_NAME=campus_postgres_prod \
+#       CONTAINER_NAME=campus_postgres_test \
 #       ./scripts/restore_postgres.sh /path/to/backup.dump campus_restore_staging
+#       (NOTE: Production containers like campus_postgres_prod are unconditionally rejected by safety guardrails)
 #    c. Manual restoration requires strict ownership and privilege decoupling:
 #       - ALWAYS verify target identity and confirm target is fresh and empty:
 #           docker compose -f docker-compose.production.yml exec -T postgres \

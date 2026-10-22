@@ -40,13 +40,14 @@ flowchart TD
 * **Password Policy:** Minimum 10 characters, requiring a mix of uppercase, lowercase, numbers, and special characters. Known compromised password dictionaries are rejected at registration.
 
 ### 2.2. Token Lifecycle & Session Management
-* **Access Tokens:** Signed via RS256 or HS256 with asymmetric key rotation.
-  * Time-to-Live (TTL): **15 minutes**.
-  * Carries minimal payload: `user_id`, `roles`, `exp`.
-* **Refresh Tokens:** High-entropy random UUIDs stored with SHA-256 hashes in the database.
-  * TTL: **7 days** with automatic token rotation upon each refresh.
-  * Transport: Stored exclusively in secure, `SameSite=Strict`, `HttpOnly`, `Secure` browser cookies.
-* **Revocation & Logout:** Logout instantly invalidates the refresh token record in the database and revokes active cached sessions in Redis.
+* **Access Tokens:** Signed via HS256 (`app.core.security` and `app.core.config`).
+  * Time-to-Live (TTL): **60 minutes** (`ACCESS_TOKEN_EXPIRE_MINUTES = 60`).
+  * Payload: Subject `sub` (user UUID), `roles` (list of assigned role names), and standard `exp` timestamp.
+  * Dual Delivery: Returned in JSON payload for client consumption and set as an `HttpOnly`, `SameSite=Lax` cookie (`campus_access_token`) for browser XSS defense.
+* **Refresh Token Rotation (Post-Pilot Planned):**
+  * Currently, the single-worker pilot relies on 60-minute sliding session access tokens.
+  * Post-pilot architecture roadmap specifies high-entropy 7-day refresh tokens stored as SHA-256 hashes in PostgreSQL with Redis token revocation upon logout.
+* **Revocation & Logout:** Logout clears the client-side session cookie and authorization state (`POST /api/v1/auth/logout`).
 
 ### 2.3. Role-Based Access Control (RBAC) Matrix
 
@@ -92,7 +93,7 @@ flowchart TD
 | **Cross-Site Scripting (XSS)** | React's JSX auto-escaping engine. Content rendered via Markdown and KaTeX is sanitized using DOMPurify with strict whitelist tags (denying `<script>`, `<iframe>`, `javascript:` URI schemes). |
 | **Cross-Site Request Forgery (CSRF)**| Stateless API uses custom `Authorization: Bearer <token>` headers; refresh token endpoints utilize `SameSite=Strict` HTTP-only cookies. |
 | **Broken Object-Level Auth (BOLA / IDOR)**| Every service layer query rigorously scopes entity retrieval to the authenticated `user_id`. (e.g., `WHERE attempt.user_id = :current_user_id`). |
-| **Rate Limiting & Abuse** | Redis-backed token bucket rate limiter: Max 5 login attempts per minute per IP; Max 100 API requests per minute for standard student endpoints. |
+| **Rate Limiting & Abuse** | Sliding-window rate limiter on authentication endpoints (`AuthRateLimiter`: 10 requests / 60 seconds). Redis-backed distributed token bucket planned for multi-worker scale post-pilot. |
 
 ---
 
@@ -122,7 +123,7 @@ flowchart TD
 
 * **Zero Secrets in Source Control:** `.gitignore` excludes all `.env`, `.env.local`, `.pem`, and certificate files. Pre-commit hooks (`git-secrets` or `detect-secrets`) block accidental commits containing API keys, database passwords, or JWT secrets.
 * **Environment Configuration:** Secrets are injected strictly via system environment variables loaded via Pydantic `BaseSettings`.
-* **Immutable Audit Trail:** All administrative operations, content approval events, and privilege escalations are recorded in the `audit_logs` table with timestamp, user ID, client IP, and payload diff. Audit logs cannot be deleted or updated through application endpoints.
+* **Audit Trail & Traceability:** All content feedback, errata tickets (`question_errata_reports`), and spaced repetition reviews (`review_logs`) are persisted with timestamp, user ID, and entity IDs. Structured application logging records critical auth and administrative operations; an immutable dedicated `audit_logs` table is scheduled in the post-pilot roadmap.
 
 ---
 

@@ -63,31 +63,34 @@ At Project Campus, software quality and educational correctness are inseparable:
   * **Assessment Lifecycle:** Starting a practice session, submitting individual attempts, verifying atomic score increments and mastery updates.
   * **Errata Reporting:** Student submitting an errata ticket, reviewer fetching queue, reviewer updating question status.
 
-### 2.4. End-to-End (E2E) Testing (Playwright)
-Playwright tests simulate real user interactions in headless Chromium, Firefox, and WebKit across desktop and mobile viewports:
+### 2.4. End-to-End (E2E) Journey Testing
+The system validates complete, continuous student lifecycles to ensure seamless integration across subsystems:
 
-* **Journey 1 (Student Core Onboarding & Practice):**
-  1. Student navigates to landing page.
-  2. Registers with valid credentials.
-  3. Completes onboarding survey (selects CBSE 12, Physics).
-  4. Selects Chapter "Electrostatics" -> Topic "Coulomb's Law".
-  5. Reads lesson and renders LaTeX equations.
-  6. Starts practice drill: Answers Question 1 correctly, Question 2 incorrectly.
-  7. Verifies instant feedback and step-by-step solution display.
-  8. Navigates to Dashboard: Verifies mastery score reflects attempt.
-  9. Verifies Question 2 appears in Daily Revision Queue.
-* **Journey 2 (Educator Content Authoring & Editorial Sign-off):**
-  1. Educator logs in, enters Author CMS.
-  2. Creates new question with LaTeX stem and options.
-  3. Previews KaTeX rendering live.
-  4. Submits for review (`status = UNDER_REVIEW`).
-  5. Reviewer logs in, reviews question in queue, approves it.
-  6. Question is now published and available in student practice drills.
+* **Current Active Implementation (`tests/test_student_journey_e2e.py`):**
+  Full-lifecycle HTTP API integration tests using `pytest-asyncio` and `httpx.AsyncClient` that validate a continuous timeline:
+  1. Student registration & identity verification (`/auth/register`, `/auth/me`).
+  2. Academic onboarding & curriculum selection (`/curricula/`, `/student/onboarding`).
+  3. Syllabus discovery & published lesson access (`/curricula/subjects/{id}/chapters`, `/curricula/lessons/{id}`).
+  4. Reading progress tracking (`/student/progress/lessons/{id}/start`, `/complete`).
+  5. Practice drill session, answer evaluation & errata ticketing (`/practice/sessions`, `/practice/submit`, `/report-errata`).
+  6. Diagnostic analytics, topic mastery & explainable recommendations (`/student/analytics/dashboard`, `/topics`, `/recommendations`).
+  7. Study goal customization (`/planner/goal`).
+  8. Daily study plan generation, task completion & valid rescheduling (`/planner/daily/generate`, `/planner/tasks/{id}/complete`, `/reschedule`).
+  9. Curriculum roadmap navigation (`/planner/roadmap`).
+  10. DPDP Act 2023 account deletion & cascading personal record erasure (`/student/account`).
+  - **Boundary & Security Coverage:** Cross-student IDOR isolation, expired/malformed token rejection, empty state recommendation handling, and past-date rescheduling denial.
+
+* **Planned Post-Pilot Browser Automation (Playwright):**
+  Headless browser E2E tests simulating full UI clicks, DOM rendering, and keyboard traversal in Chromium/WebKit are scheduled for implementation prior to public production launch.
 
 ### 2.5. Accessibility & Mobile Responsive Testing
-* **Automated Accessibility Testing:** `@axe-core/playwright` runs during E2E test passes. Zero critical or serious accessibility violations permitted.
-* **Keyboard Navigation Audits:** Focus traps inside modals, tab traversal through quiz options, Enter/Space key submission.
-* **Viewport Matrix:** Automated screenshot and layout regression checks on:
+* **Current Active Implementation:**
+  - Vitest + React Testing Library component tests across 11 suites (48 tests).
+  - Keyboard navigation: Escape key dismissal, backdrop click closing, and ARIA dialog attributes across all modals (`AuthModal`, `StudyGoalModal`, `ErrataModal`, `PracticeModal`, `FlashcardReviewModal`).
+  - Screen-reader accessible tables accompanying SVG charts in `PracticeTrendChart`.
+* **Planned Post-Pilot Enhancements:**
+  - Automated `@axe-core/playwright` scanning in CI pipeline.
+  - Viewport visual regression matrix (360px, 390px, 768px, 1440px).
   * Mobile Portrait: 360 x 800 (Samsung Galaxy / Android standard)
   * Mobile Modern: 390 x 844 (iPhone 14/15)
   * Tablet: 768 x 1024 (iPad)

@@ -71,9 +71,9 @@ flowchart TB
 | **State Management** | **TanStack Query** (React Query) + **Zustand** | Latest | Server state caching, optimistic updates, and background refetching via TanStack Query; lightweight local client state via Zustand. |
 | **Backend Framework** | **Python** with **FastAPI** | Python 3.12+ / 3.14+, FastAPI 0.115+ | High-throughput asynchronous ASGI web framework. Native Pydantic v2 validation guarantees type safety and automated OpenAPI documentation. First-class AI/ML library support in Python. |
 | **ORM & Migrations** | **SQLAlchemy 2.0** (Asyncio) + **Alembic** | SQLAlchemy 2.x, Alembic 1.13+ | Fully typed async ORM with high-performance connection pooling. Alembic provides deterministic, auditable, and rollback-capable database schema migrations. |
-| **Primary Database** | **PostgreSQL** | 16+ | Enterprise-grade ACID compliance, robust support for JSONB (for polymorphic question options and exam answers), full-text search, and analytical window functions. |
+| **Primary Database** | **PostgreSQL** | 15/16+ | Enterprise-grade ACID compliance, robust support for JSONB (for polymorphic question options and exam answers), full-text search, and analytical window functions. |
 | **Local Dev DB Support** | **SQLite (via aiosqlite)** | 3.x | Zero-dependency local fallback for instant local developer onboarding where PostgreSQL is not yet configured. |
-| **Cache & Task Queue** | **Redis** | 7.x | Sub-millisecond session validation, rate limiting, leaderboards, and temporary practice session caching. |
+| **Cache & Task Queue** | **In-Memory (Pilot) / Redis (Scale)** | In-Memory / Redis 7 | Current development and supervised student pilot uses high-performance in-memory sliding window rate limiting (`AuthRateLimiter`). Shared Redis 7 is the documented architectural prerequisite for multi-worker public scale. |
 
 ---
 
@@ -85,28 +85,24 @@ flowchart TB
 frontend/
 ├── public/                 # Static assets, favicon, manifest.json
 ├── src/
-│   ├── assets/             # Brand logos, placeholder graphics
-│   ├── components/         # Shared presentation components
-│   │   ├── common/         # Button, Input, Modal, Dropdown, Spinner
-│   │   ├── layout/         # Header, Sidebar, Footer, NavigationBar
-│   │   ├── math/           # KaTeX MathRenderer (inline and block)
-│   │   └── feedback/       # Alert, Toast, ErrorBoundary, Skeleton
-│   ├── features/           # Feature-sliced modular domains
-│   │   ├── auth/           # Login, Register, ForgotPassword, Profile
-│   │   ├── curriculum/     # SyllabusTree, SubjectCard, TopicList
-│   │   ├── lessons/        # LessonViewer, ReadingProgress, Notes
-│   │   ├── assessment/     # QuestionCard, OptionSelector, SolutionModal
-│   │   ├── ai-tutor/       # AITutorChat, GroundedReferenceBadge
-│   │   ├── analytics/      # MasteryHeatmap, PerformanceChart, WeakTopicList
-│   │   └── planner/        # DailyRevisionQueue, ExamCountdownWidget
-│   ├── hooks/              # Custom React hooks (useAuth, usePractice, useTheme)
-│   ├── services/           # Axios / Fetch client API integration
-│   ├── stores/             # Zustand state stores
-│   ├── types/              # TypeScript interface and type declarations
-│   ├── utils/              # Formatting, date helpers, LaTeX sanitization
-│   ├── App.tsx             # Root component with routing and providers
-│   └── main.tsx            # Application entry point
-├── index.html
+│   ├── assets/             # Brand logos and graphics
+│   ├── components/         # Modular domain and presentation components
+│   │   ├── analytics/      # AnalyticsMethodologyModal, PracticeTrendChart
+│   │   ├── auth/           # AuthModal (Sign In / Register with tab switching)
+│   │   ├── common/         # Header (live auth & connectivity), Footer, MathSnippet
+│   │   ├── curriculum/     # CurriculumBrowser (syllabus hierarchy navigation)
+│   │   ├── dashboard/      # StudentDashboard (KPIs, active cards, account deletion)
+│   │   ├── lessons/        # LessonViewer, LessonContentRenderer
+│   │   ├── onboarding/     # OnboardingWizard (4-step curriculum & goal setup)
+│   │   ├── planner/        # DailyStudyPlanCard, CurriculumRoadmapCard, StudyGoalModal
+│   │   ├── practice/       # QuestionCard, PracticeModal, ErrataModal
+│   │   └── review/         # DailyReviewQueueCard, FlashcardReviewModal
+│   ├── context/            # AuthContext (session persistence, login, register, logout)
+│   ├── services/           # api.ts (HTTP client with JWT Authorization & credentials)
+│   ├── types/              # TypeScript contracts (api, auth, assessment, planner, repetition)
+│   ├── test/               # Vitest suites (11 test suites, 48 tests)
+│   ├── App.tsx             # Root application shell orchestrating workspace flows
+│   └── main.tsx            # React DOM entry point
 ├── package.json
 ├── tsconfig.json
 └── vite.config.ts
