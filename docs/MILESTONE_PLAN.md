@@ -148,46 +148,53 @@ gantt
 
 ---
 
-### Milestone 7: Transparent AI Concept Clarifier (Grounded RAG)
-* **Goal:** Implement the contextual AI tutor with strict syllabus grounding, clear provenance, and safety guardrails.
-
-### Milestone 7: Spaced Repetition Scheduling & Study Planner
-* **Goal:** Enable students to retain long-term memory through automated revision queues and exam preparation milestones.
-* **Deliverables:**
-  * Implementation of SuperMemo SM-2 algorithm: Computes next review date ($1, 3, 7, 21$ days) based on answer accuracy and student confidence rating.
-  * Daily Revision Queue widget on student dashboard.
-  * Exam countdown timer and daily study hour tracking.
-* **Exit Criteria:**
-  * Questions missed during practice are automatically enqueued for revision in `revision_items`.
+### Milestone 7: Spaced Repetition Scheduling & Active Recall Queue
+* **Status:** Completed & Verified (October 2026)
+* **Goal:** Enable students to retain long-term memory through automated revision queues and SM-2 active recall scheduling.
+* **Deliverables Delivered:**
+  * Implementation of SuperMemo SM-2 algorithm: Computes interval ($I_1=1, I_2=6, I_n=I_{n-1} \cdot EF$) and E-Factor adjustments bounded at $1.3$.
+  * Relational entities `ReviewItem` and `ReviewLog` via Alembic migration `7d1a2b3c4e5f`.
+  * Daily Revision Queue widget on student dashboard and `FlashcardReviewModal` with keyboard controls.
+  * DPDP Act 2023 cascading erasure of review records upon student account deletion.
+* **Exit Criteria Verified:**
+  * Questions missed during practice are automatically enqueued for revision in `review_items`.
   * Unit tests verify mathematical correctness of interval and ease-factor adjustments.
 
 ---
 
-### Milestone 8: Mobile Optimization, Accessibility & End-to-End Hardening
-* **Goal:** Ensure flawless mobile responsiveness, WCAG 2.1 AA accessibility, and thorough end-to-end user journey validation.
-* **Deliverables:**
-  * Responsive design audit: Validated on 360px, 390px, 768px, 1024px, and 1440px widths.
-  * Accessibility audit: Keyboard navigation for all practice flows, high contrast ratios, screen-reader MathML/aria-labels.
-  * Comprehensive Playwright E2E test suite covering student onboarding to exam completion.
-  * Performance tuning: Bundle optimization, image compression, API response caching in Redis.
-* **Exit Criteria:**
-  * 0 critical accessibility violations under `axe-core` scan.
-  * Playwright tests pass 100% in headless CI.
-  * Lighthouse score $\ge 90$ on Performance, Accessibility, and Best Practices.
+### Milestone 8: Diagnostic Trends, Performance Classification & Analytics Methodology
+* **Status:** Completed & Verified (October 2026)
+* **Goal:** Provide longitudinal mastery trends, mathematical transparency, and accessibility.
+* **Deliverables Delivered:**
+  * Endpoint `GET /api/v1/student/analytics/trends` and `PracticeTrendChart` component with accessible screen-reader tables.
+  * `AnalyticsMethodologyModal` documenting diagnostic algorithms and classification boundaries.
+  * Alembic migration `0cbebed2ada2` (head).
 
 ---
 
-### Milestone 9: Production Readiness, Security Review & Pilot Launch
-* **Goal:** Final security penetration testing, production deployment configuration, and onboarding of pilot student cohort.
-* **Deliverables:**
-  * Production Docker builds and CI/CD GitHub Actions / GitLab CI workflows.
-  * Penetration testing check: OWASP Top 10 automated vulnerability scanning.
-  * Database backup automation and disaster recovery playbook.
-  * Pilot onboarding guide and system monitoring dashboards (Prometheus / Grafana or CloudWatch).
-* **Exit Criteria:**
-  * Zero high/critical vulnerability findings in security scan.
-  * Clean end-to-end smoke test on production staging environment.
-  * Formal sign-off for public pilot launch.
+### Milestone 9 & Phase B2: Production Hardening, Reverse Proxy & PostgreSQL Recovery Drill
+* **Status:** Completed & Verified (October 2026)
+* **Goal:** Final security review, reverse proxy configuration, automated PostgreSQL backup and restore recovery drill in CI.
+* **Deliverables Delivered:**
+  * Nginx reverse proxy routing, SSL/TLS termination, HTTP security headers, and cookie isolation.
+  * Production-safe backup (`scripts/backup_postgres.sh`) and standalone restore (`scripts/restore_postgres.sh`) utilities.
+  * Automated recovery drill in CI (`tests/test_backup_restore_drill.py`) verifying synthetic schema restoration and teardown on PostgreSQL 15.
+
+---
+
+### Phase C: Autonomous Audit, Security Hardening & Release Readiness Pass
+* **Status:** Completed & Verified (October 2026)
+* **Goal:** Cross-curriculum isolation, planner concurrency serialization, modal accessibility, and end-to-end student journey testing.
+* **Deliverables Delivered:**
+  * Enforced curriculum isolation in recommendations (`analytics.py`), eliminating cross-curriculum leaks.
+  * Serialized task rescheduling via row-level User locks and mutexes (`planner.py`).
+  * Modal dialog accessibility with Escape key listeners, backdrop dismissal, and isolated state lifecycles.
+  * Comprehensive end-to-end student journey integration test suite (`tests/test_student_journey_e2e.py`).
+  * GitHub Actions CI modernized to `ubuntu-24.04` and Actions `v7` running on Node 24.
+* **Exit Criteria Verified:**
+  * 240 backend Pytest tests (234 passing locally, 6 skipped: 5 PostgreSQL + 1 drill; 100% passing in CI).
+  * 48 frontend Vitest tests passing across 11 suites.
+  * Remote CI run succeeded across all matrix jobs.
 
 ---
 

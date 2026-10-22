@@ -127,7 +127,7 @@ python scripts/run_backend.py
   * `POST /api/v1/practice/questions/{id}/report-errata` — Student errata report submission with issue categorization
   * `GET /api/v1/practice/history` — Student practice history and topic accuracy metrics
   * `GET /api/v1/student/profile` — Fetch current student's academic profile
-  * `POST /api/v1/student/onboarding` — Multi-step academic onboarding submission
+  * `PUT /api/v1/student/onboarding` — Multi-step academic onboarding submission
   * `PUT /api/v1/student/profile` — Update study goals & language preference
   * `DELETE /api/v1/student/account` — DPDP Act 2023 compliant account & profile erasure
   * `GET /api/v1/student/progress/lessons` — List student lesson reading progress
@@ -136,12 +136,17 @@ python scripts/run_backend.py
   * `GET /api/v1/student/analytics/dashboard` — Aggregated KPI metrics, accuracy %, practice time & activity feed
   * `GET /api/v1/student/analytics/topics` — Topic performance breakdown with deterministic mastery classification
   * `GET /api/v1/student/analytics/recommendations` — Explainable prioritized next-step learning actions
+  * `GET /api/v1/student/analytics/trends` — Practice and diagnostic performance trends over time
+  * `GET /api/v1/review/queue` — Spaced repetition active recall due review items
+  * `POST /api/v1/review/submit` — Submit recall score (0–5) and update SM-2 schedule
+  * `GET /api/v1/review/stats` — Spaced repetition mastery and volume statistics
+  * `GET /api/v1/review/history` — Historical log of spaced repetition reviews
   * `GET /api/v1/planner/goal` — Fetch or initialize active study goal for authenticated student
-  * `PUT /api/v1/planner/goal` — Update study goal parameters (daily minutes 15–300, preferred days, target date)
+  * `POST /api/v1/planner/goal` — Update study goal parameters (daily minutes 15–300, preferred days, target date)
   * `GET /api/v1/planner/daily` — Fetch daily study plan (with anti-snowball roll forward of past tasks)
   * `POST /api/v1/planner/daily/generate` — Regenerate fresh daily tasks bounded by time budget & 4-task ceiling
-  * `POST /api/v1/planner/tasks/{id}/complete` — Atomic task completion toggle
-  * `POST /api/v1/planner/tasks/{id}/reschedule` — Move a task to a future date
+  * `PATCH /api/v1/planner/tasks/{id}/complete` — Atomic task completion toggle
+  * `PATCH /api/v1/planner/tasks/{id}/reschedule` — Move a task to a future date
   * `GET /api/v1/planner/roadmap` — Hierarchical curriculum completion roadmap per subject and chapter
 
 ### 2. Frontend Setup
@@ -159,7 +164,7 @@ npm run build
 
 ## Running Automated Tests
 
-### Backend Tests (Pytest - 237 Tests)
+### Backend Tests (Pytest - 240 Tests)
 ```bash
 # Run all backend unit & integration tests
 $env:PYTHONPATH="backend"
