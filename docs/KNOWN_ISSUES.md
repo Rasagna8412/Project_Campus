@@ -94,4 +94,31 @@ Before proceeding to Milestone 1 implementation, the following key assumptions r
    * *Observation:* Submitting `NaN` or `Infinity` caused `JSONResponse` in Starlette to fail serializing Pydantic's `RequestValidationError` detail dicts with `ValueError: Out of range float values are not JSON compliant`, resulting in an unhandled 500 error.
    * *Resolution:* Added a custom `RequestValidationError` handler in `backend/app/main.py` that recursively converts non-finite floats to strings, reliably returning a clean 422 HTTP response.
 
+---
+
+## 6. Phase B2 PostgreSQL Recovery & Reliability Status
+
+1. **PostgreSQL Backup & Standalone Restore Utilities:**
+   * *Observation:* Automated restoration workflows required production guardrails to prevent accidental overwriting of active databases.
+   * *Resolution:* Implemented strict environment inspection in `scripts/restore_postgres.sh` and `scripts/backup_postgres.sh`, rejecting production container targets, enforcing clean temporary databases, and rejecting `--clean` / `--if-exists` flags.
+2. **Automated Recovery Drill in CI:**
+   * *Observation:* Verification drills required live PostgreSQL 15 execution in continuous integration.
+   * *Resolution:* Added a dedicated `postgres:15-alpine` service in `.github/workflows/ci.yml` running `tests/test_backup_restore_drill.py` with synthetic data and strict schema teardown.
+
+---
+
+## 7. Phase C Autonomous Hardening & Defect Resolution
+
+1. **Curriculum Recommendation Isolation (DEFECT-C-01):**
+   * *Observation:* In `backend/app/api/v1/endpoints/analytics.py`, Priority 4 recommendations could fall back to global unstarted curriculum lessons when a student had not enrolled in any subjects (`enrolled_subject_ids` empty).
+   * *Resolution:* Guarded Priority 4 query with `if enrolled_subject_ids:`, ensuring students without active enrollments receive zero unstarted lesson recommendations from unrelated curricula. Regression tested in `tests/test_progress_and_analytics.py`.
+
+2. **Planner Reschedule Concurrency & Compaction (DEFECT-C-02 & DEFECT-C-03):**
+   * *Observation:* The `reschedule_task` endpoint in `backend/app/api/v1/endpoints/planner.py` lacked mutex locking and used naive `max_order + 1` order allocation, risking race conditions and ceiling overflow on rapid concurrent rescheduling requests.
+   * *Resolution:* Enforced student-date mutex locking (`_get_student_date_lock`) and database row locking (`_acquire_user_lock`), accompanied by deterministic candidate compaction within the `[1, 4]` daily task range. Added rollback and `409 Conflict` handling for database uniqueness constraints. Regression tested in `tests/test_study_planner.py`.
+
+3. **Modal Dialog Accessibility & State Isolation (DEFECT-C-04):**
+   * *Observation:* Modals lacked consistent keyboard dismissal (`Escape`), backdrop click closing, and ARIA dialog semantics. Furthermore, placing modal close handlers in the same `useEffect` as form state resets caused authentication errors to be cleared prematurely on parent re-renders.
+   * *Resolution:* Added `role="dialog"`, `aria-modal="true"`, and `Escape` key event listeners across `AuthModal`, `StudyGoalModal`, `ErrataModal`, `PracticeModal`, and `FlashcardReviewModal`. Separated form reset effects from keyboard listener lifecycles. Verified across all 11 Vitest test suites.
+
 

@@ -159,22 +159,22 @@ npm run build
 
 ## Running Automated Tests
 
-### Backend Tests (Pytest - 89 Tests)
+### Backend Tests (Pytest - 237 Tests)
 ```bash
 # Run all backend unit & integration tests
 $env:PYTHONPATH="backend"
-.\.venv\Scripts\pytest.exe -v
+.\.venv\Scripts\python.exe -m pytest -v
 ```
 
-### Frontend Tests (Vitest - 34 Tests across 9 Suites)
+### Frontend Tests (Vitest - 48 Tests across 11 Suites)
 ```bash
 cd frontend
-npm test
+npm test -- --run
 ```
 
 ---
 
-## Milestone Status
+## Milestone & Phase Status
 
 * **Milestone 0:** Discovery, Product Planning, and Architecture Specification — **COMPLETE**
 * **Milestone 1:** Development Environment, Core Scaffolding, and Database Schema — **COMPLETE**
@@ -183,9 +183,14 @@ npm test
 * **Milestone 4:** Question Bank, Topic-Based Practice Engine, and Assessment Foundation — **COMPLETE**
 * **Milestone 5:** Student Progress Tracking & Learning Analytics — **COMPLETE**
 * **Milestone 6:** Study Planner & Learning Roadmap — **COMPLETE**
-  * **Relational Planner Schema:** Alembic migration `0c92f4b6848c` adding `study_goals` and `study_tasks` tables with indexed `(user_id, scheduled_date)` (20 tables active).
-  * **4-Tier Deterministic Task Generator:** Generates up to 4 tasks per day respecting daily study time budget (15–300 minutes, default 120 minutes), prioritizing in-progress lessons, revision on weak topics (<60%), next syllabus lessons, and confidence drills.
-  * **Anti-Snowball Missed-Day Policy:** Non-punitive automatic transition of past incomplete tasks to `SKIPPED`, preventing backlog avalanche while preserving historical analytics.
-  * **Interactive Frontend Planner UI:** `DailyStudyPlanCard` positioned directly below the 5-KPI analytics bar, `CurriculumRoadmapCard` tracking syllabus completion per subject, and `StudyGoalModal` for customizing time budgets.
-  * **DPDP Act 2023 Compliance:** Cascading erasure of all study goals and tasks on student account deletion.
-  * **Automated Verification:** 89/89 backend Pytest tests passing; 34/34 frontend Vitest tests passing across 9 suites; production compilation verified with zero TypeScript errors.
+* **Milestone 7:** Spaced Repetition Engine (SuperMemo SM-2) & Active Recall Review Queue — **COMPLETE**
+* **Milestone 8:** Diagnostic Trends, Performance Classification & Analytics Methodology — **COMPLETE**
+* **Milestone 9:** Reverse Proxy Topology, SSL/TLS Ingress & Production Readiness Audit — **COMPLETE**
+* **Phase B2:** PostgreSQL Safe Backup, Standalone Restore Script & Automated Recovery Drill — **COMPLETE**
+  * Production-safe backup script (`scripts/backup_postgres.sh`) and standalone restore script (`scripts/restore_postgres.sh`) with strict test-database verification and fail-closed safety checks.
+  * Live PostgreSQL 15 automated backup and restore drill (`tests/test_backup_restore_drill.py`) integrated into CI.
+* **Phase C:** Autonomous Product Audit, Security Hardening, Accessibility & Production Readiness — **COMPLETE**
+  * Enforced cross-curriculum isolation on student recommendations (DEFECT-C-01).
+  * Serialized study task rescheduling with row-level locks and compact candidate ordering (DEFECT-C-02, DEFECT-C-03).
+  * Hardened frontend dialog accessibility with Escape key listeners, backdrop dismissal, and isolated state lifecycles across all modals (DEFECT-C-04).
+  * Verified 231 backend tests passed locally (6 skipped due to local PostgreSQL environment; 100% passed in CI), 48/48 frontend tests passed across 11 suites, and production build succeeded cleanly.
