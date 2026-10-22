@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Sigma,
   Target,
+  Bot,
 } from 'lucide-react';
 import {
   getLessonDetail,
@@ -21,6 +22,7 @@ import {
 import { LessonDetail, LessonSection, SectionType } from '../../types/content';
 import { LessonProgress } from '../../types/progress';
 import { LessonContentRenderer } from './LessonContentRenderer';
+import { AITutorDrawer } from '../tutor/AITutorDrawer';
 
 export interface BreadcrumbItem {
   label: string;
@@ -48,6 +50,7 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
   const [progress, setProgress] = useState<LessonProgress | null>(null);
   const [isCompleting, setIsCompleting] = useState<boolean>(false);
   const [completionError, setCompletionError] = useState<string | null>(null);
+  const [isTutorOpen, setIsTutorOpen] = useState<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -326,13 +329,23 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
           <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto mb-5 leading-relaxed">
             Consolidate your knowledge with deliberate practice questions, immediate feedback, and verified step-by-step educator derivations.
           </p>
-          <button
-            onClick={() => onStartPractice(lesson.topic_id, lesson.title)}
-            className="inline-flex items-center space-x-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-xl shadow-md transition-all hover:scale-[1.02]"
-          >
-            <PenTool className="w-4 h-4" />
-            <span>Practise Topic Questions</span>
-          </button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={() => onStartPractice(lesson.topic_id, lesson.title)}
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-xl shadow-md transition-all hover:scale-[1.02]"
+            >
+              <PenTool className="w-4 h-4" />
+              <span>Practise Topic Questions</span>
+            </button>
+
+            <button
+              onClick={() => setIsTutorOpen(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md transition-all hover:scale-[1.02]"
+            >
+              <Bot className="w-4 h-4" />
+              <span>Ask Campus AI Tutor</span>
+            </button>
+          </div>
         </section>
       )}
 
@@ -395,6 +408,27 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
           <span>Back to Top</span>
         </button>
       </footer>
+
+      {/* Floating AI Tutor Quick Trigger */}
+      <button
+        onClick={() => setIsTutorOpen(true)}
+        className="fixed bottom-6 right-6 z-40 bg-brand-600 hover:bg-brand-700 text-white p-3.5 sm:px-5 sm:py-3.5 rounded-full shadow-2xl flex items-center space-x-2 border-2 border-white transition-all hover:scale-105"
+        aria-label="Open Campus AI Tutor"
+      >
+        <Bot className="w-5 h-5 text-amber-300" />
+        <span className="hidden sm:inline text-xs font-bold">Ask AI Tutor</span>
+      </button>
+
+      {/* Campus AI Tutor Drawer */}
+      {lesson && (
+        <AITutorDrawer
+          isOpen={isTutorOpen}
+          onClose={() => setIsTutorOpen(false)}
+          initialLessonId={lesson.id}
+          initialLessonTitle={lesson.title}
+          initialTopicId={lesson.topic_id}
+        />
+      )}
     </article>
   );
 };

@@ -105,6 +105,34 @@ SEED_CURRICULA = [
             },
         ],
     },
+    {
+        "code": "ENG_UNIV",
+        "name": "University Engineering (B.Tech / B.E.)",
+        "country_code": "IND",
+        "description": "Undergraduate Engineering Programs & Technical Computing (AICTE Model)",
+        "grades": [
+            {
+                "code": "SEM_1_2",
+                "name": "First Year Engineering (Semesters 1 & 2)",
+                "display_order": 1,
+                "subjects": [
+                    ("ENG_CS101", "Problem Solving & Programming in C", 1),
+                    ("ENG_MATH101", "Engineering Mathematics I (Linear Algebra & Calculus)", 2),
+                    ("ENG_DSA201", "Data Structures & Algorithms", 3),
+                ],
+            },
+            {
+                "code": "CSE_SEM_3",
+                "name": "Computer Science & Engineering (Semester 3)",
+                "display_order": 2,
+                "subjects": [
+                    ("ENG_DSA201", "Data Structures & Algorithms", 1),
+                    ("ENG_OOP202", "Object-Oriented Programming (Java/C++)", 2),
+                    ("ENG_DMS203", "Discrete Mathematical Structures", 3),
+                ],
+            },
+        ],
+    },
 ]
 
 

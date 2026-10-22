@@ -6,10 +6,12 @@ import {
   ArrowRight,
   Loader2,
   BookOpen,
+  Bot,
 } from 'lucide-react';
 import { QuestionEvaluation, StudentQuestion } from '../../types/assessment';
 import { renderMathInText, renderMarkdown } from '../curriculum/LessonContentRenderer';
 import { ErrataModal } from './ErrataModal';
+import { AITutorDrawer } from '../tutor/AITutorDrawer';
 
 interface QuestionCardProps {
   question: StudentQuestion;
@@ -47,6 +49,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
   // Errata modal state
   const [isErrataOpen, setIsErrataOpen] = useState<boolean>(false);
+  const [isTutorOpen, setIsTutorOpen] = useState<boolean>(false);
 
   // Handlers for option selection
   const handleToggleOption = (key: string) => {
@@ -314,17 +317,27 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
       {/* Action Footer: Submit or Next */}
       {!evaluation ? (
-        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-          <div className="text-xs text-slate-400">
-            {question.question_type === 'multiple_choice'
-              ? 'Select all options that apply before submitting.'
-              : 'Select your answer and click submit for verified feedback.'}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setIsTutorOpen(true)}
+              className="inline-flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-xl transition-colors"
+            >
+              <Bot className="w-3.5 h-3.5 text-brand-600" />
+              <span>Need a hint? Ask AI Tutor</span>
+            </button>
+            <span className="hidden sm:inline text-xs text-slate-400">
+              {question.question_type === 'multiple_choice'
+                ? 'Select all options that apply.'
+                : 'Select your answer and submit.'}
+            </span>
           </div>
 
           <button
             onClick={handleSubmit}
             disabled={!isAnswerProvided() || isSubmitting}
-            className="inline-flex items-center space-x-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm rounded-xl transition-all shadow-sm disabled:opacity-50"
+            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm rounded-xl transition-all shadow-sm disabled:opacity-50"
           >
             {isSubmitting ? (
               <>
@@ -360,6 +373,16 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   ? 'Your derivation matches the verified solution.'
                   : 'Review the verified step-by-step educator solution below to master this concept.'}
               </p>
+              {!evaluation.is_correct && (
+                <button
+                  type="button"
+                  onClick={() => setIsTutorOpen(true)}
+                  className="mt-2.5 inline-flex items-center space-x-1.5 px-3 py-1 bg-white border border-rose-200 text-rose-800 text-xs font-bold rounded-lg hover:bg-rose-100/50 shadow-sm transition-all"
+                >
+                  <Bot className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Clarify this mistake with AI Tutor</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -397,6 +420,19 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         questionId={question.id}
         isOpen={isErrataOpen}
         onClose={() => setIsErrataOpen(false)}
+      />
+
+      {/* Campus AI Tutor Drawer for Hint & Clarification */}
+      <AITutorDrawer
+        isOpen={isTutorOpen}
+        onClose={() => setIsTutorOpen(false)}
+        initialTopicId={question.topic_id}
+        initialPrompt={
+          evaluation && !evaluation.is_correct
+            ? `I answered this question incorrectly. Can you clarify the foundational concepts and explain what mistake students typically make?`
+            : `Can you give me a conceptual hint for solving this problem without revealing the direct numerical answer?`
+        }
+        initialMode={evaluation && !evaluation.is_correct ? 'EXPLAIN' : 'HINT'}
       />
     </div>
   );

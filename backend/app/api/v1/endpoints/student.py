@@ -267,7 +267,11 @@ async def delete_student_account(
         # 5. Cleanse interactive attempts and practice sessions
         await db.execute(delete(QuestionAttempt).where(QuestionAttempt.user_id == current_user.id))
         await db.execute(delete(PracticeSession).where(PracticeSession.user_id == current_user.id))
-        # 6. Delete user identity (ORM cascades cleanly to student_profile, selected_subjects, and user_roles)
+        # 6. Cleanse AI tutor interactions and subscription entitlements
+        from app.models.ai import AITutorInteraction, StudentSubscription
+        await db.execute(delete(AITutorInteraction).where(AITutorInteraction.user_id == current_user.id))
+        await db.execute(delete(StudentSubscription).where(StudentSubscription.user_id == current_user.id))
+        # 7. Delete user identity (ORM cascades cleanly to student_profile, selected_subjects, and user_roles)
         await db.delete(current_user)
         await db.commit()
         # 7. Invalidate active browser session by deleting auth cookie

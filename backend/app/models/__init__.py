@@ -46,6 +46,10 @@ from app.models.repetition import (
     ReviewLog,
     ReviewStatus,
 )
+from app.models.ai import (
+    AITutorInteraction,
+    StudentSubscription,
+)
 
 __all__ = [
     "Base",
@@ -83,4 +87,6 @@ __all__ = [
     "ReviewItem",
     "ReviewLog",
     "ReviewStatus",
+    "AITutorInteraction",
+    "StudentSubscription",
 ]

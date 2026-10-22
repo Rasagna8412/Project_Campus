@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     progress,
     review,
     student,
+    tutor,
 )
 
 api_router = APIRouter()
@@ -25,3 +26,4 @@ api_router.include_router(analytics_trends.router, prefix="/student/analytics", 
 api_router.include_router(practice.router, prefix="/practice", tags=["Practice & Assessment"])
 api_router.include_router(planner.router, prefix="/planner", tags=["Study Planner & Learning Roadmap"])
 api_router.include_router(review.router, prefix="/review", tags=["Spaced Repetition & Revision Queue"])
+api_router.include_router(tutor.router, prefix="/tutor", tags=["Campus AI Tutor & Entitlements"])

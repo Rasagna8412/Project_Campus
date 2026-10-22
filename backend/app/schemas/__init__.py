@@ -18,6 +18,13 @@ from app.schemas.student import (
     StudentProfileResponse,
     StudentProfileUpdateRequest,
 )
+from app.schemas.ai import (
+    AITutorChatRequest,
+    AITutorChatResponse,
+    AITutorQuizQuestion,
+    SubscriptionEntitlementResponse,
+    TierUpgradeRequest,
+)
 
 __all__ = [
     "HealthResponse",
@@ -32,4 +39,9 @@ __all__ = [
     "StudentOnboardingRequest",
     "StudentProfileResponse",
     "StudentProfileUpdateRequest",
+    "AITutorChatRequest",
+    "AITutorChatResponse",
+    "AITutorQuizQuestion",
+    "SubscriptionEntitlementResponse",
+    "TierUpgradeRequest",
 ]

@@ -148,6 +148,10 @@ python scripts/run_backend.py
   * `PATCH /api/v1/planner/tasks/{id}/complete` — Atomic task completion toggle
   * `PATCH /api/v1/planner/tasks/{id}/reschedule` — Move a task to a future date
   * `GET /api/v1/planner/roadmap` — Hierarchical curriculum completion roadmap per subject and chapter
+  * `POST /api/v1/tutor/chat` — Grounded AI tutor chat with pedagogical mode support, syllabus grounding, and guardrails
+  * `GET /api/v1/tutor/entitlements` — Student subscription tier, daily AI tutor quota, usage count, and reset timestamp
+  * `POST /api/v1/tutor/upgrade-preview` — Student pilot tier upgrade toggle (Free <-> Pro) for demonstration
+  * `GET /api/v1/tutor/history` — Student AI tutor query log with lesson citations and token accounting
 
 ### 2. Frontend Setup
 ```bash
@@ -164,14 +168,14 @@ npm run build
 
 ## Running Automated Tests
 
-### Backend Tests (Pytest - 240 Tests)
+### Backend Tests (Pytest - 251 Tests)
 ```bash
 # Run all backend unit & integration tests
 $env:PYTHONPATH="backend"
 .\.venv\Scripts\python.exe -m pytest -v
 ```
 
-### Frontend Tests (Vitest - 48 Tests across 11 Suites)
+### Frontend Tests (Vitest - 56 Tests across 12 Suites)
 ```bash
 cd frontend
 npm test -- --run
@@ -199,3 +203,10 @@ npm test -- --run
   * Serialized study task rescheduling with row-level locks and compact candidate ordering (DEFECT-C-02, DEFECT-C-03).
   * Hardened frontend dialog accessibility with Escape key listeners, backdrop dismissal, and isolated state lifecycles across all modals (DEFECT-C-04).
   * Verified 231 backend tests passed locally (6 skipped due to local PostgreSQL environment; 100% passed in CI), 48/48 frontend tests passed across 11 suites, and production build succeeded cleanly.
+* **Milestone D:** AI-Powered Learning Experience, Engineering Education & Product Transformation — **COMPLETE**
+  * **Campus AI Tutor & Pedagogical Modes:** Grounded multi-mode AI teaching assistant supporting standard doubt-clearing (`EXPLAIN`), layman simplified analogies (`SIMPLIFY`), step-by-step worked solutions (`EXAMPLE`), exam diagnostic hints (`HINT`), and on-demand interactive practice quizzes (`QUIZ`).
+  * **Grounding & Safety Guardrails:** Strict verification against published lesson sections, rejecting off-topic hallucinations, prompt injections, and direct academic dishonesty / exam answer leakage. Provider-agnostic engine with fallback Deterministic Grounded Educator Engine allowing 100% offline, zero-cost CI test execution.
+  * **Undergraduate Engineering Track:** University Engineering taxonomy (`ENG_UNIV`), First-Year Engineering (`SEM_1_2`), and B.Tech CSE curricula: Programming in C (`ENG_CS101`), Engineering Mathematics (`ENG_MATH101`), and Data Structures (`ENG_DSA201`), seeded with comprehensive lesson and single-choice practice content on Pointers and Memory Architecture.
+  * **Interactive Coding Problem Studio:** Browser-based problem viewer, multi-language editor (C, Python, JS), sample test cases runner, and zero-trust sandbox architecture specification (gVisor/Firecracker, memory/CPU bounds, network egress isolation).
+  * **Subscription Entitlements & Commercial Readiness:** Daily quota management (Free tier: 20 queries/day; Pro tier: 500 queries/day), upgrade modal with pilot demo toggle, and full DPDP Act 2023 cascading erasure.
+  * **Automated Verification:** 245 backend tests passed (6 PostgreSQL-specific skipped locally, 100% passed in CI), 56 frontend tests passed across 12 suites, and production TypeScript build succeeded cleanly.

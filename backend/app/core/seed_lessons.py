@@ -370,6 +370,96 @@ SAMPLE_LESSONS_DATA = [
             }
         ],
     },
+    {
+        "board_code": "ENG_UNIV",
+        "grade_code": "SEM_1_2",
+        "subject_code": "ENG_CS101",
+        "chapter_number": 1,
+        "chapter_title": "Pointers, Memory Architecture and Dynamic Allocation",
+        "chapter_slug": "pointers-and-dynamic-memory-allocation",
+        "chapter_summary": "Low-level memory architecture in C: stack vs heap, pointer arithmetic, dynamic allocation with malloc/free, and memory leak prevention.",
+        "topics": [
+            {
+                "topic_number": 1,
+                "title": "Pointers and Dynamic Memory Allocation in C",
+                "slug": "pointers-dynamic-memory-c",
+                "importance_weight": 3,
+                "lessons": [
+                    {
+                        "title": "Memory Architecture, Pointer Arithmetic, and Heap Management in C",
+                        "slug": "memory-architecture-pointer-arithmetic-c",
+                        "summary": "Master pointer fundamentals, direct memory addressing, pointer arithmetic, void pointers, malloc, calloc, realloc, and defensive deallocation.",
+                        "learning_objectives": [
+                            "Understand the C memory layout: Text, Data, BSS, Heap, and Stack segments",
+                            "Manipulate memory addresses directly using pointer variables and dereference operators (* and &)",
+                            "Allocate and resize memory on the heap safely using malloc(), calloc(), and realloc()",
+                            "Identify and prevent dangling pointers, double-free vulnerabilities, and memory leaks",
+                        ],
+                        "estimated_read_time_minutes": 14,
+                        "status": ContentStatus.PUBLISHED.value,
+                        "provenance": "Aligned with AICTE Model Engineering Curriculum (CS101: Programming for Problem Solving). Verified by CS Faculty.",
+                        "is_verified": True,
+                        "display_order": 1,
+                        "sections": [
+                            {
+                                "section_number": 1,
+                                "title": "The C Process Address Space: Stack vs. Heap",
+                                "section_type": SectionType.CONCEPT.value,
+                                "content_markdown": (
+                                    "When an operating system executes a C program, it allocates a contiguous virtual address space partitioned into distinct segments:\n\n"
+                                    "1. **Text Segment (Code):** Contains executable machine instructions. It is read-only to prevent accidental modification.\n"
+                                    "2. **Initialized Data (.data) & Uninitialized Data (.bss):** Stores global and static variables.\n"
+                                    "3. **The Heap:** Region utilized for dynamic memory allocation at runtime via `malloc()`. It grows upwards toward higher memory addresses.\n"
+                                    "4. **The Stack:** Region storing local variables, function parameters, and return addresses. It grows downward toward lower memory addresses with automatic allocation and cleanup upon function return.\n\n"
+                                    "A **pointer** is a variable that stores the memory address of another variable. If variable `x` resides at address `0x7ffee4b2a`, an integer pointer `int *p = &x;` stores that exact address."
+                                ),
+                            },
+                            {
+                                "section_number": 2,
+                                "title": "Pointer Arithmetic and Array Subscript Equivalence",
+                                "section_type": SectionType.WORKED_EXAMPLE.value,
+                                "content_markdown": (
+                                    "In C, arithmetic operations on pointers are automatically scaled by the size of the underlying data type:\n\n"
+                                    "$$\\text{address}(p + i) = \\text{address}(p) + (i \\times \\text{sizeof}(*p))$$\n\n"
+                                    "For example, if `p` is an `int *` on an architecture where `sizeof(int) == 4`, advancing `p + 1` increases the address value by exactly 4 bytes.\n\n"
+                                    "### Array-Pointer Duality\n"
+                                    "In expression contexts, an array identifier decays into a pointer to its first element:\n\n"
+                                    "```c\n"
+                                    "int arr[5] = {10, 20, 30, 40, 50};\n"
+                                    "int *ptr = arr; // equivalent to &arr[0]\n"
+                                    "// Array indexing is syntactic sugar for pointer arithmetic:\n"
+                                    "// arr[i] == *(arr + i) == *(i + arr) == i[arr]\n"
+                                    "```"
+                                ),
+                            },
+                            {
+                                "section_number": 3,
+                                "title": "Dynamic Heap Management & Defensive Memory Hygiene",
+                                "section_type": SectionType.NOTE.value,
+                                "content_markdown": (
+                                    "Dynamic allocation allows memory requests whose sizes are determined at runtime:\n\n"
+                                    "* `malloc(size_t bytes)`: Allocates uninitialized memory. Returns `NULL` if allocation fails.\n"
+                                    "* `calloc(size_t num, size_t size)`: Allocates contiguous elements initialized to zero.\n"
+                                    "* `free(void *ptr)`: Releases heap memory back to the allocator.\n\n"
+                                    "**Defensive Rule:** Always verify that `malloc` did not return `NULL`, and set pointers to `NULL` immediately after freeing:\n\n"
+                                    "```c\n"
+                                    "int *buffer = (int *)malloc(100 * sizeof(int));\n"
+                                    "if (!buffer) {\n"
+                                    "    perror(\"Memory allocation failed\");\n"
+                                    "    exit(EXIT_FAILURE);\n"
+                                    "}\n"
+                                    "// ... use buffer ...\n"
+                                    "free(buffer);\n"
+                                    "buffer = NULL; // Prevents dangling pointer dereferencing\n"
+                                    "```"
+                                ),
+                            },
+                        ],
+                    }
+                ],
+            }
+        ],
+    },
 ]
 
 

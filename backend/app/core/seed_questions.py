@@ -255,6 +255,41 @@ SAMPLE_QUESTIONS_DATA = [
             "explanation_latex": "In-review explanation: For zero order, $t_{1/2} = [A]_0 / (2k)$.",
         },
     },
+    # ---------------------------------------------------------
+    # ENGINEERING: Computer Science & Programming in C
+    # ---------------------------------------------------------
+    {
+        "topic_slug": "pointers-dynamic-memory-c",
+        "question_type": QuestionType.SINGLE_CHOICE.value,
+        "difficulty": DifficultyLevel.MEDIUM.value,
+        "content_latex": (
+            "Consider an array `int arr[5] = {10, 20, 30, 40, 50};` and a pointer `int *p = arr + 1;`. "
+            "What is the value evaluated by the expression `*(p + 2)`?"
+        ),
+        "hints": [
+            "Remember that arr points to arr[0]. What does arr + 1 point to?",
+            "p + 2 advances the pointer 2 elements forward from p.",
+        ],
+        "status": ContentStatus.PUBLISHED.value,
+        "provenance": "GATE CS & AICTE Computer Science Foundation 2024",
+        "is_verified": True,
+        "options": [
+            {"option_key": "A", "content_latex": "$20$", "display_order": 1},
+            {"option_key": "B", "content_latex": "$30$", "display_order": 2},
+            {"option_key": "C", "content_latex": "$40$", "display_order": 3},
+            {"option_key": "D", "content_latex": "$50$", "display_order": 4},
+        ],
+        "answer_key": {
+            "correct_options": ["C"],
+            "explanation_latex": (
+                "**Step-by-step derivation:**\n"
+                "1. `arr` decays into a pointer to `arr[0]` (value 10).\n"
+                "2. `p = arr + 1` points to `arr[1]` (value 20).\n"
+                "3. `p + 2` points to `arr[1 + 2] = arr[3]`.\n"
+                "4. Dereferencing `*(p + 2)` accesses `arr[3]`, whose value is **40**."
+            ),
+        },
+    },
 ]
 
 

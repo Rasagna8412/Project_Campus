@@ -17,6 +17,9 @@ import {
   RotateCcw,
   RefreshCw,
   TrendingUp,
+  Bot,
+  Crown,
+  Code2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -37,6 +40,7 @@ import {
   getPlannerTrends,
   getRetentionTrends,
   getDiagnosticMatrix,
+  getSubscriptionEntitlements,
 } from '../../services/api';
 import {
   DashboardAnalytics,
@@ -60,6 +64,7 @@ import {
   PracticeTrendsResponse,
   RetentionTrendsResponse,
 } from '../../types/analytics_trends';
+import { SubscriptionEntitlementResponse } from '../../types/ai';
 import { DailyStudyPlanCard } from '../planner/DailyStudyPlanCard';
 import { StudyGoalModal } from '../planner/StudyGoalModal';
 import { CurriculumRoadmapCard } from '../planner/CurriculumRoadmapCard';
@@ -70,6 +75,9 @@ import { PlannerAdherenceChart } from '../analytics/PlannerAdherenceChart';
 import { RetentionTrendsCard } from '../analytics/RetentionTrendsCard';
 import { DiagnosticMatrixCard } from '../analytics/DiagnosticMatrixCard';
 import { AnalyticsMethodologyModal } from '../analytics/AnalyticsMethodologyModal';
+import { AITutorDrawer } from '../tutor/AITutorDrawer';
+import { SubscriptionModal } from '../subscription/SubscriptionModal';
+import { CodingSandboxModal } from '../coding/CodingSandboxModal';
 
 interface StudentDashboardProps {
   onOpenOnboarding: () => void;
@@ -171,6 +179,29 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [practiceDays, setPracticeDays] = useState<number>(7);
   const [plannerDays, setPlannerDays] = useState<number>(7);
   const [isMethodologyModalOpen, setIsMethodologyModalOpen] = useState<boolean>(false);
+
+  // Milestone D AI Tutor, Engineering Sandbox, and Subscription states
+  const [isTutorOpen, setIsTutorOpen] = useState<boolean>(false);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState<boolean>(false);
+  const [isCodingModalOpen, setIsCodingModalOpen] = useState<boolean>(false);
+  const [entitlements, setEntitlements] = useState<SubscriptionEntitlementResponse | null>(null);
+
+  useEffect(() => {
+    if (typeof getSubscriptionEntitlements === 'function') {
+      try {
+        const promise = getSubscriptionEntitlements();
+        if (promise && typeof promise.then === 'function') {
+          promise
+            .then((data) => {
+              if (data) setEntitlements(data);
+            })
+            .catch(() => {});
+        }
+      } catch {
+        // Fallback for tests or offline
+      }
+    }
+  }, []);
 
   const fetchTrendsAndDiagnostics = useCallback(
     async (pDays: number = 7, plDays: number = 7) => {
@@ -394,21 +425,46 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => setIsTutorOpen(true)}
+              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-brand-500 hover:bg-brand-400 text-white shadow-md transition-all"
+            >
+              <Bot className="w-4 h-4 text-amber-300" />
+              <span>Ask AI Tutor</span>
+            </button>
+
+            <button
+              onClick={() => setIsCodingModalOpen(true)}
+              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition-all"
+            >
+              <Code2 className="w-4 h-4 text-indigo-200" />
+              <span>Code Sandbox</span>
+            </button>
+
             <button
               onClick={onOpenLessons}
-              className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold bg-brand-500 hover:bg-brand-400 text-white shadow-md transition-all"
+              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all"
             >
               <BookOpen className="w-4 h-4" />
-              <span>Browse Curriculum Lessons</span>
+              <span>Lessons</span>
+            </button>
+
+            <button
+              onClick={() => setIsSubscriptionModalOpen(true)}
+              className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/30 transition-all"
+              title="Manage subscription and AI quota"
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-400" />
+              <span>{entitlements?.tier === 'PRO' ? 'PRO' : 'Free Tier'}</span>
             </button>
 
             <button
               onClick={onOpenOnboarding}
-              className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-900 hover:bg-slate-100 shadow-md transition-all"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white text-slate-900 hover:bg-slate-100 shadow-md transition-all"
             >
               <Compass className="w-4 h-4 text-brand-600" />
-              <span>{isOnboardingIncomplete ? 'Resume Setup' : 'Edit Curriculum Setup'}</span>
+              <span>{isOnboardingIncomplete ? 'Resume Setup' : 'Curriculum'}</span>
             </button>
           </div>
         </div>
@@ -1135,6 +1191,36 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
       <AnalyticsMethodologyModal
         isOpen={isMethodologyModalOpen}
         onClose={() => setIsMethodologyModalOpen(false)}
+      />
+
+      {/* Floating AI Tutor Quick Trigger */}
+      <button
+        onClick={() => setIsTutorOpen(true)}
+        className="fixed bottom-6 right-6 z-40 bg-brand-600 hover:bg-brand-700 text-white p-3.5 sm:px-5 sm:py-3.5 rounded-full shadow-2xl flex items-center space-x-2 border-2 border-white transition-all hover:scale-105"
+        aria-label="Open Campus AI Tutor"
+      >
+        <Bot className="w-5 h-5 text-amber-300" />
+        <span className="hidden sm:inline text-xs font-bold">Ask AI Tutor</span>
+      </button>
+
+      {/* Campus AI Tutor Drawer (Milestone D) */}
+      <AITutorDrawer
+        isOpen={isTutorOpen}
+        onClose={() => setIsTutorOpen(false)}
+      />
+
+      {/* Subscription Entitlements Modal (Milestone D) */}
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
+        entitlements={entitlements}
+        onEntitlementsUpdated={(updated) => setEntitlements(updated)}
+      />
+
+      {/* Engineering Code Sandbox Modal (Milestone D) */}
+      <CodingSandboxModal
+        isOpen={isCodingModalOpen}
+        onClose={() => setIsCodingModalOpen(false)}
       />
     </div>
   );

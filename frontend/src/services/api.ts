@@ -43,11 +43,17 @@ import {
   ReviewSubmitResponse,
 } from '../types/repetition';
 import {
-  DiagnosticMatrixResponse,
-  PlannerTrendsResponse,
-  PracticeTrendsResponse,
-  RetentionTrendsResponse,
+    DiagnosticMatrixResponse,
+    PlannerTrendsResponse,
+    PracticeTrendsResponse,
+    RetentionTrendsResponse,
 } from '../types/analytics_trends';
+import {
+  AITutorChatRequest,
+  AITutorChatResponse,
+  AITutorHistoryItem,
+  SubscriptionEntitlementResponse,
+} from '../types/ai';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const TOKEN_STORAGE_KEY = 'campus_auth_token';
@@ -527,6 +533,43 @@ export async function getDiagnosticMatrix(): Promise<DiagnosticMatrixResponse> {
     { method: 'GET' }
   );
 }
+
+/**
+ * Campus AI Tutor and Subscription Entitlements API Endpoints
+ */
+
+export async function askAITutor(
+  payload: AITutorChatRequest
+): Promise<AITutorChatResponse> {
+  return await apiRequest<AITutorChatResponse>('/api/v1/tutor/chat', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getSubscriptionEntitlements(): Promise<SubscriptionEntitlementResponse> {
+  return await apiRequest<SubscriptionEntitlementResponse>('/api/v1/tutor/entitlements', {
+    method: 'GET',
+  });
+}
+
+export async function upgradeSubscriptionTier(
+  targetTier: 'FREE' | 'PRO'
+): Promise<SubscriptionEntitlementResponse> {
+  return await apiRequest<SubscriptionEntitlementResponse>('/api/v1/tutor/upgrade-preview', {
+    method: 'POST',
+    body: JSON.stringify({ target_tier: targetTier }),
+  });
+}
+
+export async function getAITutorHistory(
+  limit: number = 10
+): Promise<AITutorHistoryItem[]> {
+  return await apiRequest<AITutorHistoryItem[]>(`/api/v1/tutor/history?limit=${limit}`, {
+    method: 'GET',
+  });
+}
+
 
 
 

@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import List, Union
+from typing import List, Optional, Union
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -48,6 +48,16 @@ class Settings(BaseSettings):
     AUTH_RATE_LIMIT_MAX_ATTEMPTS: int = 5
     AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 60
     FORWARDED_ALLOW_IPS: str = "127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+
+    # AI Tutor & Learning Engine Settings
+    AI_PROVIDER: str = "deterministic"
+    AI_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: Optional[str] = None
+    AI_MODEL_NAME: str = "gemini-1.5-flash"
+    AI_RATE_LIMIT_PER_MINUTE: int = 15
+    SUBSCRIPTION_FREE_TIER_DAILY_TUTOR_LIMIT: int = 20
+    SUBSCRIPTION_PRO_TIER_DAILY_TUTOR_LIMIT: int = 500
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
