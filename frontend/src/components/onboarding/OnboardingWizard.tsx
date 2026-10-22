@@ -278,6 +278,17 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     </div>
                     <h4 className="text-sm font-bold text-slate-900 mt-2">{board.name}</h4>
                     <p className="text-xs text-slate-500 mt-1 leading-relaxed">{board.description}</p>
+                    <div className="mt-3">
+                      {board.code === 'CBSE' ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          Active Pilot • Lessons Ready
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                          Syllabus Taxonomy • Content in Review
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })}

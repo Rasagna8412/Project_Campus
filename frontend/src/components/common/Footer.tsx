@@ -14,11 +14,21 @@ export const Footer: React.FC = () => {
           <div className="flex items-center space-x-4">
             <span className="flex items-center space-x-1">
               <Terminal className="w-3.5 h-3.5 text-slate-400" />
-              <span>FastAPI 0.115 + React 18 + SQLAlchemy 2.0</span>
+              <span>FastAPI 0.115 + React 18</span>
             </span>
             <span>•</span>
             <span className="flex items-center space-x-1">
-              <span>Engineered with rigor for serious learners</span>
+              <span>Pilot Feedback:</span>
+              <a
+                href="mailto:pilot@projectcampus.local"
+                className="text-brand-600 hover:text-brand-700 underline font-medium"
+              >
+                pilot@projectcampus.local
+              </a>
+            </span>
+            <span>•</span>
+            <span className="flex items-center space-x-1">
+              <span>Academic Edition</span>
               <Heart className="w-3.5 h-3.5 text-rose-500 inline fill-rose-500" />
             </span>
           </div>
